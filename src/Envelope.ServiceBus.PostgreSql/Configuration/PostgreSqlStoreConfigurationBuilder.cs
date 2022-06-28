@@ -45,8 +45,8 @@ public abstract class PostgreSqlServiceBusConfigurationBuilderBase<TBuilder, TOb
 		if (_postgreSqlServiceBusConfiguration.StoreKey == Guid.Empty)
 			_postgreSqlServiceBusConfiguration.StoreKey = Guid.NewGuid();
 
-		var error = _postgreSqlServiceBusConfiguration.Validate(nameof(IPostgreSqlStoreConfiguration))?.ToString();
-		if (!string.IsNullOrWhiteSpace(error))
+		var error = _postgreSqlServiceBusConfiguration.Validate(nameof(IPostgreSqlStoreConfiguration));
+		if (0 < error?.Count)
 			throw new ConfigurationException(error);
 
 		return _postgreSqlServiceBusConfiguration;

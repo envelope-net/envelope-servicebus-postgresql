@@ -7,6 +7,35 @@ namespace Envelope.ServiceBus.PostgreSql.Messages.Internal;
 
 internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 {
+	public IResult SaveToStorage<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionContext transactionContext)
+		where TMessage : class, IMessage
+	{
+		var result = new ResultBuilder();
+
+		if (messagesMetadata != null && message != null)
+		{
+			foreach (var metadata in messagesMetadata)
+				metadata.HasSelfContent = false;
+
+			//foreach (var metadata in messagesMetadata)
+			//	_store.Set(metadata.MessageId, message, new MemoryCacheEntryOptions { SlidingExpiration = _slidingExpiration });
+		}
+
+		return result.Build();
+	}
+
+	public IResult<Guid>SaveReplyToStorage<TResponse>(Guid messageId, TResponse? response, ITraceInfo traceInfo, ITransactionContext transactionContext)
+	{
+		var result = new ResultBuilder<Guid>();
+
+		if (response != null)
+		{
+			//_store.Set($"{messageId}:REPLY", response, new MemoryCacheEntryOptions { SlidingExpiration = _slidingExpiration });
+		}
+
+		return result.WithData(Guid.NewGuid()).Build();
+	}
+
 	public Task<IResult> SaveToStorageAsync<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
 		where TMessage : class, IMessage
 	{

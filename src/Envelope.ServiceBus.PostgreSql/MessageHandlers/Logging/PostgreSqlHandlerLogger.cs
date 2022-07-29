@@ -72,9 +72,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogTraceMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			martenSession.SaveChanges();
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				martenSession.SaveChanges();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -92,9 +105,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogDebugMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			martenSession.SaveChanges();
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				martenSession.SaveChanges();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -112,9 +138,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			martenSession.SaveChanges();
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				martenSession.SaveChanges();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -132,9 +171,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			martenSession.SaveChanges();
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				martenSession.SaveChanges();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -150,9 +202,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
-		using var martenSession = _store.OpenSession();
-		martenSession.Store(new DbHandlerLog(msg));
-		martenSession.SaveChanges();
+
+		var tmp = msg.Exception;
+		msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+		try
+		{
+			using var martenSession = _store.OpenSession();
+			martenSession.Store(new DbHandlerLog(msg));
+			martenSession.SaveChanges();
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+
+		msg.Exception = tmp;
 
 		return msg;
 	}
@@ -167,9 +232,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
-		using var martenSession = _store.OpenSession();
-		martenSession.Store(new DbHandlerLog(msg));
-		martenSession.SaveChanges();
+
+		var tmp = msg.Exception;
+		msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+		try
+		{
+			using var martenSession = _store.OpenSession();
+			martenSession.Store(new DbHandlerLog(msg));
+			martenSession.SaveChanges();
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+
+		msg.Exception = tmp;
 
 		return msg;
 	}
@@ -187,9 +265,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogTraceMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -208,9 +299,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogDebugMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -229,9 +333,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -250,9 +367,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);
-			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHandlerLog(msg));
-			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+			var tmp = msg.Exception;
+			msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store(new DbHandlerLog(msg));
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+			}
+
+			msg.Exception = tmp;
 		}
 
 		return msg;
@@ -269,9 +399,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
-		using var martenSession = _store.OpenSession();
-		martenSession.Store(new DbHandlerLog(msg));
-		await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+		var tmp = msg.Exception;
+		msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(new DbHandlerLog(msg));
+			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+
+		msg.Exception = tmp;
 
 		return msg;
 	}
@@ -287,9 +430,22 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
-		using var martenSession = _store.OpenSession();
-		martenSession.Store(new DbHandlerLog(msg));
-		await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+		var tmp = msg.Exception;
+		msg.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(new DbHandlerLog(msg));
+			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+
+		msg.Exception = tmp;
 
 		return msg;
 	}

@@ -1,6 +1,6 @@
 ﻿using Envelope.Logging;
 using Envelope.Logging.Extensions;
-using Envelope.ServiceBus.Orchestrations.Logging;
+using Envelope.ServiceBus.Jobs.Logging;
 using Envelope.ServiceBus.PostgreSql.Internal;
 using Envelope.ServiceBus.PostgreSql.Messages;
 using Envelope.Trace;
@@ -8,14 +8,14 @@ using Envelope.Transactions;
 using Marten;
 using Microsoft.Extensions.Logging;
 
-namespace Envelope.ServiceBus.PostgreSql.Orchestrations.Logging;
+namespace Envelope.ServiceBus.PostgreSql.Jobs.Logging;
 
-public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
+public class PostgreSqlJobLogger : IJobLogger
 {
 	private readonly DocumentStore _store;
 	private readonly ILogger _logger;
 
-	public PostgreSqlOrchestrationLogger(Guid storeKey, ILogger<PostgreSqlOrchestrationLogger> logger)
+	public PostgreSqlJobLogger(Guid storeKey, ILogger<PostgreSqlJobLogger> logger)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_store = StoreProvider.GetStore(storeKey);
@@ -23,19 +23,11 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	private static Action<LogMessageBuilder> AppendToBuilder(
 		Action<LogMessageBuilder> messageBuilder,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		string? detail)
 	{
-		if (idOrchestration.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idOrchestration), idOrchestration.Value.ToString());
-
-		if (idStep.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idStep), idStep.Value.ToString());
-
-		if (idExecutionPointer.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idExecutionPointer), idExecutionPointer.Value.ToString());
+		if (!string.IsNullOrWhiteSpace(jobName))
+			messageBuilder += x => x.AddCustomData(nameof(jobName), jobName);
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder +=
@@ -46,19 +38,11 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	private static Action<ErrorMessageBuilder> AppendToBuilder(
 		Action<ErrorMessageBuilder> messageBuilder,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		string? detail)
 	{
-		if (idOrchestration.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idOrchestration), idOrchestration.Value.ToString());
-
-		if (idStep.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idStep), idStep.Value.ToString());
-
-		if (idExecutionPointer.HasValue)
-			messageBuilder += x => x.AddCustomData(nameof(idExecutionPointer), idExecutionPointer.Value.ToString());
+		if (!string.IsNullOrWhiteSpace(jobName))
+			messageBuilder += x => x.AddCustomData(nameof(jobName), jobName);
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder +=
@@ -69,15 +53,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<ILogMessage?> LogTraceAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -89,7 +71,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbOrchestrationLog(msg));
+				martenSession.Store(new DbJobLog(jobName, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -105,15 +87,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<ILogMessage?> LogDebugAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -125,7 +105,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbOrchestrationLog(msg));
+				martenSession.Store(new DbJobLog(jobName, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -141,15 +121,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<ILogMessage?> LogInformationAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -161,7 +139,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbOrchestrationLog(msg));
+				martenSession.Store(new DbJobLog(jobName, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -177,15 +155,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<ILogMessage?> LogWarningAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -197,7 +173,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbOrchestrationLog(msg));
+				martenSession.Store(new DbJobLog(jobName, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -213,15 +189,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<IErrorMessage> LogErrorAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -231,7 +205,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbOrchestrationLog(msg));
+			martenSession.Store(new DbJobLog(jobName, msg));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -246,15 +220,13 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 
 	public async Task<IErrorMessage> LogCriticalAsync(
 		ITraceInfo traceInfo,
-		Guid? idOrchestration,
-		Guid? idStep,
-		Guid? idExecutionPointer,
+		string jobName,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionContext? transactionContext = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
+		AppendToBuilder(messageBuilder, jobName, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -264,7 +236,7 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbOrchestrationLog(msg));
+			martenSession.Store(new DbJobLog(jobName, msg));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)

@@ -41,26 +41,33 @@ internal class StoreProvider
 
 			options.Schema.For<DbExchangeMessage>()
 				.Identity(x => x.MessageId)
+				.DocumentAlias("exchange_message")
 				.UseOptimisticConcurrency(true);
 
 			options.Schema.For<DbExchangeArchivedMessage>()
-				.Identity(x => x.MessageId);
+				.Identity(x => x.MessageId)
+				.DocumentAlias("exchange_archived_message");
 
 			options.Schema.For<DbQueuedMessage>()
 				.Identity(x => x.MessageId)
+				.DocumentAlias("queued_message")
 				.UseOptimisticConcurrency(true);
 
 			options.Schema.For<DbQueuedArchivedMessage>()
-				.Identity(x => x.MessageId);
+				.Identity(x => x.MessageId)
+				.DocumentAlias("queued_archived_message");
 
 			options.Schema.For<DbHostLog>()
-				.Identity(x => x.IdLogMessage);
+				.Identity(x => x.IdLogMessage)
+				.DocumentAlias("host_log");
 
 			options.Schema.For<DbHandlerLog>()
-				.Identity(x => x.IdLogMessage);
+				.Identity(x => x.IdLogMessage)
+				.DocumentAlias("handler_log");
 
 			options.Schema.For<DbOrchestrationInstance>()
 				.Identity(x => x.IdOrchestrationInstance)
+				.DocumentAlias("orchestration_instance")
 				.Duplicate(x => x.OrchestrationInstance.OrchestrationKey,
 					pgType: "varchar(127)",
 					notNull: true)
@@ -68,19 +75,35 @@ internal class StoreProvider
 
 			options.Schema.For<DbExecutionPointer>()
 				.Identity(x => x.IdExecutionPointer)
+				.DocumentAlias("execution_pointer")
 				.ForeignKey<DbOrchestrationInstance>(on => on.IdOrchestrationInstance)
 				.UseOptimisticConcurrency(true);
 
 			options.Schema.For<DbFinalizedBranches>()
 				.Identity(x => x.IdOrchestrationInstance)
+				.DocumentAlias("finalized_branche")
 				.UseOptimisticConcurrency(true);
 
 			options.Schema.For<DbOrchestrationEvent>()
 				.Identity(x => x.MessageId)
+				.DocumentAlias("orchestration_event")
 				.UseOptimisticConcurrency(true);
 
 			options.Schema.For<DbOrchestrationLog>()
-				.Identity(x => x.IdLogMessage);
+				.Identity(x => x.IdLogMessage)
+				.DocumentAlias("orchestration_log");
+
+			options.Schema.For<DbJobData>()
+				.Identity(x => x.IdJobData)
+				.DocumentAlias("job_data")
+				.UseOptimisticConcurrency(true);
+
+			options.Schema.For<DbJobLog>()
+				.Identity(x => x.IdLogMessage)
+				.DocumentAlias("job_log")
+				.Duplicate(x => x.JobName,
+					pgType: "varchar(127)",
+					notNull: true);
 		});
 
 		var SQL_SCRIPT = store.Storage.ToDatabaseScript();

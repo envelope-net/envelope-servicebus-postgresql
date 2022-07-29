@@ -119,6 +119,52 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		return dbOrchestrationInstances.Select(x => (IOrchestrationInstance)x.OrchestrationInstance.ToOrchestrationInstance(definitions[x.IdOrchestrationInstance]!, serviceProvider, hostInfo)).ToList();
 	}
 
+	public async Task<List<IOrchestrationInstance>> GetAllUnfinishedOrchestrationInstancesAsync(
+		Guid idOrchestrationDefinition,
+		IServiceProvider serviceProvider,
+		IHostInfo hostInfo,
+		ITransactionContext transactionContext,
+		CancellationToken cancellationToken)
+	{
+		if (serviceProvider == null)
+			throw new ArgumentNullException(nameof(serviceProvider));
+
+		if (hostInfo == null)
+			throw new ArgumentNullException(nameof(hostInfo));
+
+		if (transactionContext == null)
+			throw new ArgumentNullException(nameof(transactionContext));
+
+		var tc = ConvertTransactionContext(transactionContext);
+		var martenSession = tc.CreateOrGetSession();
+		
+		var dbOrchestrationInstances = await martenSession.QueryAsync(new UnfinishedOrchestrationInstanceQuery { IdOrchestrationDefinition = idOrchestrationDefinition }, cancellationToken).ConfigureAwait(false);
+
+		if (dbOrchestrationInstances == null || !dbOrchestrationInstances.Any())
+			return new List<IOrchestrationInstance>();
+
+		var instanceIds = dbOrchestrationInstances.Select(x => x.IdOrchestrationInstance).ToList().Distinct();
+
+		var definitions =
+			dbOrchestrationInstances
+				.Select(x =>
+					new {
+						x.IdOrchestrationInstance,
+						Definition =
+							_registry.GetDefinition(
+								x.OrchestrationInstance.IdOrchestrationDefinition,
+								x.OrchestrationInstance.Version)
+					})
+				.GroupBy(x => x.IdOrchestrationInstance)
+				.ToDictionary(x => x.Key, x => x.First().Definition);
+
+		foreach (var instanceId in instanceIds)
+			if (!definitions.ContainsKey(instanceId))
+				throw new InvalidOperationException($"{nameof(instanceId)} = {instanceId} has no definition");
+
+		return dbOrchestrationInstances.Select(x => (IOrchestrationInstance)x.OrchestrationInstance.ToOrchestrationInstance(definitions[x.IdOrchestrationInstance]!, serviceProvider, hostInfo)).ToList();
+	}
+
 	public async Task<bool?> IsCompletedOrchestrationAsync(Guid idOrchestrationInstance, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
 	{
 		if (transactionContext == null)

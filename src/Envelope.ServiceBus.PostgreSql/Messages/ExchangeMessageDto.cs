@@ -1,6 +1,7 @@
 ﻿using Envelope.ServiceBus.ErrorHandling;
 using Envelope.ServiceBus.Exchange;
 using Envelope.ServiceBus.Messages;
+using Envelope.Trace;
 using Envelope.Trace.Dto;
 using System.Text;
 
@@ -120,7 +121,7 @@ public class ExchangeMessageDto
 		DisableFaultQueue = exchangeMessage.DisableFaultQueue;
 	}
 
-	public ExchangeMessage<TMessage> ToExchangeMessage<TMessage>()
+	public ExchangeMessage<TMessage> ToExchangeMessage<TMessage>(ITraceInfo? actualizeByTraceInfo)
 		where TMessage : class, IMessage
 	{
 		var exchangeMessage = new ExchangeMessage<TMessage>
@@ -129,7 +130,7 @@ public class ExchangeMessageDto
 			ParentMessageId = ParentMessageId,
 			PublishingTimeUtc = PublishingTimeUtc,
 			PublisherId = PublisherId,
-			TraceInfo = TraceInfo.ToTraceInfo(),
+			TraceInfo = TraceInfo.ToTraceInfo(actualizeByTraceInfo),
 			Timeout = Timeout,
 			IdSession = IdSession,
 			ContentType = ContentType,

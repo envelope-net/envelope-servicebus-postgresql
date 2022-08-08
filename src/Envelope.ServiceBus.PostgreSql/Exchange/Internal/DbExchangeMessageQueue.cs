@@ -92,7 +92,7 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		if (existingDbExchangeMessage == null)
 			return result.Build();
 
-		var excahngeMessage = existingDbExchangeMessage.ExchangeMessage?.ToExchangeMessage<TMessage>();
+		var excahngeMessage = existingDbExchangeMessage.ExchangeMessage?.ToExchangeMessage<TMessage>(traceInfo);
 		return result.WithData(excahngeMessage).Build();
 	}
 

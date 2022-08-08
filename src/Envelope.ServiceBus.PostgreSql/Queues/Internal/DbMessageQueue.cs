@@ -91,7 +91,7 @@ internal class DbMessageQueue<TMessage> : IQueue<IQueuedMessage<TMessage>>
 		if (existingDbQueuedMessage == null)
 			return result.Build();
 
-		var excahngeMessage = existingDbQueuedMessage.QueuedMessage?.ToQueuedMessage<TMessage>();
+		var excahngeMessage = existingDbQueuedMessage.QueuedMessage?.ToQueuedMessage<TMessage>(traceInfo);
 		return result.WithData(excahngeMessage).Build();
 	}
 

@@ -15,11 +15,13 @@ namespace Envelope.ServiceBus.PostgreSql.Hosts.Logging;
 public class PostgreSqlHostLogger : IHostLogger
 {
 	private readonly DocumentStore _store;
+	private readonly IApplicationContext _applicationContext;
 	private readonly ILogger _logger;
 
-	public PostgreSqlHostLogger(Guid storeKey, ILogger<PostgreSqlHostLogger> logger)
+	public PostgreSqlHostLogger(Guid storeKey, IApplicationContext applicationContext, ILogger<PostgreSqlHostLogger> logger)
 	{
 		_store = StoreProvider.GetStore(storeKey);
+		_applicationContext = applicationContext ?? throw new ArgumentNullException(nameof(applicationContext));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	}
 
@@ -286,7 +288,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 			catch (Exception ex)
 			{
-				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(nameof(PostgreSqlHostLogger)), x => x.ExceptionInfo(ex)), true);
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
 			}
 		}
 	}
@@ -342,7 +344,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 			catch (Exception ex)
 			{
-				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(nameof(PostgreSqlHostLogger)), x => x.ExceptionInfo(ex)), true);
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
 			}
 		}
 	}
@@ -581,7 +583,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 			catch (Exception ex)
 			{
-				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(nameof(PostgreSqlHostLogger)), x => x.ExceptionInfo(ex)), true);
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
 			}
 		}
 	}
@@ -638,7 +640,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 			catch (Exception ex)
 			{
-				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(nameof(PostgreSqlHostLogger)), x => x.ExceptionInfo(ex)), true);
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
 			}
 		}
 	}

@@ -45,7 +45,11 @@ public static class ServiceBusConfigurationBuilderExtensions
 				.MessageBodyProvider(sp => new PostgreSqlMessageBodyProvider())
 				.MessageHandler((sp, options) => OrchestrationEventHandler.HandleMessageAsync))
 
-			.HostLogger(sp => new PostgreSqlHostLogger(storeKey, sp.GetRequiredService<ILogger<PostgreSqlHostLogger>>()))
+			.HostLogger(sp => new PostgreSqlHostLogger(
+				storeKey,
+				sp.GetRequiredService<IApplicationContext>(),
+				sp.GetRequiredService<ILogger<PostgreSqlHostLogger>>()))
+
 			.HandlerLogger(sp => new PostgreSqlHandlerLogger(storeKey, sp.GetRequiredService<ILogger<PostgreSqlHandlerLogger>>()));
 
 		return builder;

@@ -1,6 +1,7 @@
 ﻿using Envelope.ServiceBus.ErrorHandling;
 using Envelope.ServiceBus.Messages;
 using Envelope.ServiceBus.Queues;
+using Envelope.Trace;
 using Envelope.Trace.Dto;
 using System.Text;
 
@@ -120,7 +121,7 @@ public class QueuedMessageDto
 		DisableFaultQueue = queuedMessage.DisableFaultQueue;
 	}
 
-	public QueuedMessage<TMessage> ToQueuedMessage<TMessage>()
+	public QueuedMessage<TMessage> ToQueuedMessage<TMessage>(ITraceInfo? actualizeByTraceInfo)
 		where TMessage : class, IMessage
 	{
 		var queuedMessage = new QueuedMessage<TMessage>
@@ -129,7 +130,7 @@ public class QueuedMessageDto
 			ParentMessageId = ParentMessageId,
 			PublishingTimeUtc = PublishingTimeUtc,
 			PublisherId = PublisherId,
-			TraceInfo = TraceInfo.ToTraceInfo(),
+			TraceInfo = TraceInfo.ToTraceInfo(actualizeByTraceInfo),
 			Timeout = Timeout,
 			IdSession = IdSession,
 			ContentType = ContentType,

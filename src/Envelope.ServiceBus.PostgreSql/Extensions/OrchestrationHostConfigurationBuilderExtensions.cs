@@ -21,8 +21,6 @@ public static class OrchestrationHostConfigurationBuilderExtensions
 			 storeKey = StoreProvider.DefaultStoreKey;
 
 		builder
-			.TransactionManagerFactory(new PostgreSqlTransactionManagerFactory(storeKey))
-			.TransactionContextFactory(ServiceBusConfigurationBuilderExtensions.CreateTransactionContextAsync)
 			.OrchestrationRepositoryFactory((sp, registry) => new PostgreSqlOrchestrationRepository(registry))
 			.DistributedLockProviderFactory(sp => new PostgreSqlLockProvider(storeKey))
 			.OrchestrationLogger(sp => new PostgreSqlOrchestrationLogger(storeKey, sp.GetRequiredService<ILogger<PostgreSqlOrchestrationLogger>>()));

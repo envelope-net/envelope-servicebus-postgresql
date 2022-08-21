@@ -5,23 +5,28 @@ using Npgsql;
 
 namespace Envelope.ServiceBus.PostgreSql.Internal;
 
-internal class PostgreSqlTransactionContext : ITransactionContext
+internal class PostgreSqlTransactionDocumentSessionCache : ITransactionCache, IDisposable, IAsyncDisposable
 {
 	private readonly object _lock = new();
 	private readonly object _sessionLock = new();
 
 	private IDocumentSession? _documentSession;
-	private bool disposed;
+	private bool _disposed;
 
-	public ITransactionManager TransactionManager { get; }
+	public ITransactionCoordinator TransactionCoordinator { get; private set; }
 	public TransactionResult TransactionResult { get; private set; }
 	public string? RollbackErrorInfo { get; private set; }
 	public DocumentStore DocumentStore { get; }
 	
-	public PostgreSqlTransactionContext(DocumentStore documentStore, ITransactionManager transactionManager)
+	public PostgreSqlTransactionDocumentSessionCache(DocumentStore documentStore)
 	{
 		DocumentStore = documentStore ?? throw new ArgumentNullException(nameof(documentStore));
-		TransactionManager = transactionManager ?? throw new ArgumentNullException(nameof(transactionManager));
+		TransactionCoordinator = null!;
+	}
+	
+	public void SetTransactionCoordinator(ITransactionCoordinator transactionCoordinator)
+	{
+		TransactionCoordinator = transactionCoordinator ?? throw new ArgumentNullException(nameof(transactionCoordinator));
 	}
 
 	public void ScheduleCommit()
@@ -54,7 +59,7 @@ internal class PostgreSqlTransactionContext : ITransactionContext
 
 			_documentSession = DocumentStore.OpenSession();
 			var observer = new PostgreSqlTransactionBehaviorObserver(_documentSession);
-			TransactionManager.ConnectTransactionObserver(observer);
+			TransactionCoordinator.ConnectTransactionObserver(observer);
 		}
 
 		return _documentSession;
@@ -77,7 +82,7 @@ internal class PostgreSqlTransactionContext : ITransactionContext
 			_documentSession = DocumentStore.OpenSession(options);
 
 			var observer = new PostgreSqlTransactionBehaviorObserver(_documentSession);
-			TransactionManager.ConnectTransactionObserver(observer);
+			TransactionCoordinator.ConnectTransactionObserver(observer);
 		}
 
 		return _documentSession;
@@ -100,7 +105,7 @@ internal class PostgreSqlTransactionContext : ITransactionContext
 			_documentSession = DocumentStore.OpenSession(options);
 
 			var observer = new PostgreSqlTransactionBehaviorObserver(_documentSession);
-			TransactionManager.ConnectTransactionObserver(observer);
+			TransactionCoordinator.ConnectTransactionObserver(observer);
 		}
 
 		return _documentSession;
@@ -123,7 +128,7 @@ internal class PostgreSqlTransactionContext : ITransactionContext
 			_documentSession = DocumentStore.OpenSession(options);
 
 			var observer = new PostgreSqlTransactionBehaviorObserver(_documentSession);
-			TransactionManager.ConnectTransactionObserver(observer);
+			TransactionCoordinator.ConnectTransactionObserver(observer);
 		}
 
 		return _documentSession;
@@ -170,23 +175,36 @@ internal class PostgreSqlTransactionContext : ITransactionContext
 
 	public async ValueTask DisposeAsync()
 	{
+		if (_disposed)
+			return;
+
+		_disposed = true;
+
 		await DisposeAsyncCoreAsync().ConfigureAwait(false);
 
 		Dispose(disposing: false);
 		GC.SuppressFinalize(this);
 	}
 
-	protected virtual ValueTask DisposeAsyncCoreAsync()
-		=> TransactionManager.DisposeAsync();
+	protected virtual async ValueTask DisposeAsyncCoreAsync()
+	{
+		if (_documentSession != null)
+			await _documentSession.DisposeAsync();
+
+		await TransactionCoordinator.DisposeAsync();
+	}
 
 	protected virtual void Dispose(bool disposing)
 	{
-		if (!disposed)
-		{
-			if (disposing)
-				TransactionManager.Dispose();
+		if (_disposed)
+			return;
 
-			disposed = true;
+		_disposed = true;
+
+		if (disposing)
+		{
+			_documentSession?.Dispose();
+			TransactionCoordinator.Dispose();
 		}
 	}
 

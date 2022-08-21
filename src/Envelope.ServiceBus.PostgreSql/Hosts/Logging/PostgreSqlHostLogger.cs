@@ -67,7 +67,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
@@ -101,7 +101,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
@@ -135,7 +135,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
@@ -169,7 +169,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
@@ -203,7 +203,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
@@ -234,7 +234,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
@@ -261,7 +261,7 @@ public class PostgreSqlHostLogger : IHostLogger
 
 	public void LogResultErrorMessages(
 		IResult result,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		var msgs = new List<DbHostLog>();
 
@@ -295,7 +295,7 @@ public class PostgreSqlHostLogger : IHostLogger
 
 	public void LogResultAllMessages(
 		IResult result,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		var msgs = new List<DbHostLog>();
 
@@ -355,7 +355,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -390,7 +390,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -425,7 +425,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -460,7 +460,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -495,7 +495,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -527,7 +527,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
@@ -555,9 +555,12 @@ public class PostgreSqlHostLogger : IHostLogger
 
 	public async Task LogResultErrorMessagesAsync(
 		IResult result,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
+		if (result == null)
+			return;
+
 		var msgs = new List<DbHostLog>();
 
 		foreach (var errorMessage in result.ErrorMessages)
@@ -590,9 +593,12 @@ public class PostgreSqlHostLogger : IHostLogger
 
 	public async Task LogResultAllMessagesAsync(
 		IResult result,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
+		if (result == null)
+			return;
+
 		var msgs = new List<DbHostLog>();
 
 		var messages = new List<ILogMessage>(result.ErrorMessages);

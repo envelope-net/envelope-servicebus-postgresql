@@ -65,7 +65,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
@@ -98,7 +98,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
@@ -131,7 +131,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
@@ -164,7 +164,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
@@ -197,7 +197,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
@@ -227,7 +227,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null)
+		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
@@ -257,7 +257,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
@@ -291,7 +291,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
@@ -325,7 +325,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
@@ -359,7 +359,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
@@ -393,7 +393,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
@@ -424,7 +424,7 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionManager? transactionManager = null,
+		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);

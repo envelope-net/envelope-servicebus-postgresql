@@ -25,15 +25,15 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		_registry = registry ?? throw new ArgumentNullException(nameof(registry));
 	}
 
-	public Task CreateNewOrchestrationAsync(IOrchestrationInstance orchestration, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public Task CreateNewOrchestrationAsync(IOrchestrationInstance orchestration, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		if (orchestration == null)
 			throw new ArgumentNullException(nameof(orchestration));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		martenSession.Store(new DbOrchestrationInstance().Initialize(orchestration));
 
@@ -44,7 +44,7 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		Guid idOrchestrationInstance,
 		IServiceProvider serviceProvider,
 		IHostInfo hostInfo,
-		ITransactionContext transactionContext,
+		ITransactionController transactionController,
 		CancellationToken cancellationToken)
 	{
 		if (serviceProvider == null)
@@ -53,10 +53,10 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		if (hostInfo == null)
 			throw new ArgumentNullException(nameof(hostInfo));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbOrchestrationInstance = await martenSession.LoadAsync<DbOrchestrationInstance>(idOrchestrationInstance, cancellationToken).ConfigureAwait(false);
 
@@ -78,7 +78,7 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		string orchestrationKey,
 		IServiceProvider serviceProvider,
 		IHostInfo hostInfo,
-		ITransactionContext transactionContext,
+		ITransactionController transactionController,
 		CancellationToken cancellationToken)
 	{
 		if (serviceProvider == null)
@@ -87,10 +87,10 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		if (hostInfo == null)
 			throw new ArgumentNullException(nameof(hostInfo));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbOrchestrationInstances = await martenSession.QueryAsync(new OrchestrationInstanceByKeyQuery { OrchestrationKey = orchestrationKey }, cancellationToken).ConfigureAwait(false);
 
@@ -123,7 +123,7 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		Guid idOrchestrationDefinition,
 		IServiceProvider serviceProvider,
 		IHostInfo hostInfo,
-		ITransactionContext transactionContext,
+		ITransactionController transactionController,
 		CancellationToken cancellationToken)
 	{
 		if (serviceProvider == null)
@@ -132,10 +132,10 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		if (hostInfo == null)
 			throw new ArgumentNullException(nameof(hostInfo));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		
 		var dbOrchestrationInstances = await martenSession.QueryAsync(new UnfinishedOrchestrationInstanceQuery { IdOrchestrationDefinition = idOrchestrationDefinition }, cancellationToken).ConfigureAwait(false);
@@ -165,12 +165,12 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		return dbOrchestrationInstances.Select(x => (IOrchestrationInstance)x.OrchestrationInstance.ToOrchestrationInstance(definitions[x.IdOrchestrationInstance]!, serviceProvider, hostInfo)).ToList();
 	}
 
-	public async Task<bool?> IsCompletedOrchestrationAsync(Guid idOrchestrationInstance, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task<bool?> IsCompletedOrchestrationAsync(Guid idOrchestrationInstance, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbOrchestrationInstance = await martenSession.LoadAsync<DbOrchestrationInstance>(idOrchestrationInstance, cancellationToken).ConfigureAwait(false);
 
@@ -182,40 +182,40 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		return dbExecutionPointers?.All(x => x.ExecutionPointer.Status == PointerStatus.Completed) ?? false;
 	}
 
-	public Task AddExecutionPointerAsync(ExecutionPointer executionPointer, ITransactionContext transactionContext)
+	public Task AddExecutionPointerAsync(ExecutionPointer executionPointer, ITransactionController transactionController)
 	{
 		if (executionPointer == null)
 			throw new ArgumentNullException(nameof(executionPointer));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		martenSession.Store(new DbExecutionPointer().Initialize(executionPointer));
 		return Task.CompletedTask;
 	}
 
-	public Task AddNestedExecutionPointerAsync(ExecutionPointer executionPointer, ExecutionPointer parentExecutionPointer, ITransactionContext transactionContext)
+	public Task AddNestedExecutionPointerAsync(ExecutionPointer executionPointer, ExecutionPointer parentExecutionPointer, ITransactionController transactionController)
 	{
 		if (executionPointer == null)
 			throw new ArgumentNullException(nameof(executionPointer));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		martenSession.Store(new DbExecutionPointer().Initialize(executionPointer));
 		return Task.CompletedTask;
 	}
 
-	public async Task<List<ExecutionPointer>> GetOrchestrationExecutionPointersAsync(Guid idOrchestrationInstance, ITransactionContext transactionContext)
+	public async Task<List<ExecutionPointer>> GetOrchestrationExecutionPointersAsync(Guid idOrchestrationInstance, ITransactionController transactionController)
 	{
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbExecutionPointers = await martenSession.QueryAsync(new OrchestrationExecutionPointersQuery { IdOrchestrationInstance = idOrchestrationInstance}).ConfigureAwait(false);
 
@@ -239,12 +239,12 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 			.ToList();
 	}
 
-	public async Task<ExecutionPointer?> GetStepExecutionPointerAsync(Guid idOrchestrationInstance, Guid idStep, ITransactionContext transactionContext)
+	public async Task<ExecutionPointer?> GetStepExecutionPointerAsync(Guid idOrchestrationInstance, Guid idStep, ITransactionController transactionController)
 	{
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbExecutionPointer = await martenSession.QueryAsync(new ExecutionPointerByIdStepQuery { IdOrchestrationInstance = idOrchestrationInstance, IdStep = idStep }).ConfigureAwait(false);
 
@@ -267,15 +267,15 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		return dbExecutionPointer.ExecutionPointer.ToExecutionPointer(step);
 	}
 
-	public async Task UpdateExecutionPointerAsync(ExecutionPointer executionPointer, IExecutionPointerUpdate update, ITransactionContext transactionContext)
+	public async Task UpdateExecutionPointerAsync(ExecutionPointer executionPointer, IExecutionPointerUpdate update, ITransactionController transactionController)
 	{
 		if (executionPointer == null)
 			throw new ArgumentNullException(nameof(executionPointer));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbExecutionPointer = await martenSession.LoadAsync<DbExecutionPointer>(executionPointer.IdExecutionPointer).ConfigureAwait(false);
 
@@ -286,12 +286,12 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		martenSession.Store(dbExecutionPointer);
 	}
 
-	public async Task UpdateOrchestrationStatusAsync(Guid idOrchestrationInstance, OrchestrationStatus status, DateTime? completeTimeUtc, ITransactionContext transactionContext)
+	public async Task UpdateOrchestrationStatusAsync(Guid idOrchestrationInstance, OrchestrationStatus status, DateTime? completeTimeUtc, ITransactionController transactionController)
 	{
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbOrchestrationInstance = await martenSession.LoadAsync<DbOrchestrationInstance>(idOrchestrationInstance).ConfigureAwait(false);
 
@@ -303,15 +303,15 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		martenSession.Store(dbOrchestrationInstance);
 	}
 
-	public async Task AddFinalizedBranchAsync(Guid idOrchestrationInstance, IOrchestrationStep finalizedBranch, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task AddFinalizedBranchAsync(Guid idOrchestrationInstance, IOrchestrationStep finalizedBranch, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		if (finalizedBranch == null)
 			throw new ArgumentNullException(nameof(finalizedBranch));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbFinalizedBranches = await martenSession.LoadAsync<DbFinalizedBranches>(idOrchestrationInstance, cancellationToken).ConfigureAwait(false);
 
@@ -322,12 +322,12 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		martenSession.Store(dbFinalizedBranches);
 	}
 
-	public async Task<List<Guid>> GetFinalizedBrancheIdsAsync(Guid idOrchestrationInstance, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task<List<Guid>> GetFinalizedBrancheIdsAsync(Guid idOrchestrationInstance, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbFinalizedBranches = await martenSession.LoadAsync<DbFinalizedBranches>(idOrchestrationInstance, cancellationToken).ConfigureAwait(false);
 
@@ -343,7 +343,7 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 
 
 
-	public Task<IResult> SaveNewEventAsync(OrchestrationEvent @event, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public Task<IResult> SaveNewEventAsync(OrchestrationEvent @event, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 	{
 		var result = new ResultBuilder();
 		traceInfo = TraceInfo.Create(traceInfo);
@@ -351,10 +351,10 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		if (@event == null)
 			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(@event)));
 
-		if (transactionContext == null)
-			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(transactionContext)));
+		if (transactionController == null)
+			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(transactionController)));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		martenSession.Store(
 			new DbOrchestrationEvent
@@ -367,15 +367,15 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		return Task.FromResult((IResult)result.Build());
 	}
 
-	public async Task<IResult<List<OrchestrationEvent>?>> GetUnprocessedEventsAsync(string orchestrationKey, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public async Task<IResult<List<OrchestrationEvent>?>> GetUnprocessedEventsAsync(string orchestrationKey, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 	{
 		var result = new ResultBuilder<List<OrchestrationEvent>?>();
 		traceInfo = TraceInfo.Create(traceInfo);
 
-		if (transactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(transactionContext));
+		if (transactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var unprocessedEvents = await martenSession.QueryAsync(new UnprocessedEventsQuery(), cancellationToken).ConfigureAwait(false);
 
@@ -385,7 +385,7 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 				.Build();
 	}
 
-	public async Task<IResult> SetProcessedUtcAsync(OrchestrationEvent @event, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public async Task<IResult> SetProcessedUtcAsync(OrchestrationEvent @event, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 	{
 		var result = new ResultBuilder();
 		traceInfo = TraceInfo.Create(traceInfo);
@@ -393,10 +393,10 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		if (@event == null)
 			return result.WithArgumentNullException(traceInfo, nameof(@event));
 
-		if (transactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(transactionContext));
+		if (transactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var existingEvent = await martenSession.LoadAsync<DbOrchestrationEvent>(@event.Id, cancellationToken).ConfigureAwait(false);
 
@@ -407,13 +407,5 @@ internal class PostgreSqlOrchestrationRepository : IOrchestrationRepository, IOr
 		martenSession.Store(existingEvent);
 
 		return result.Build();
-	}
-
-	private static PostgreSqlTransactionContext ConvertTransactionContext(ITransactionContext transactionContext)
-	{
-		if (transactionContext is not PostgreSqlTransactionContext tc)
-			throw new InvalidOperationException($"{nameof(transactionContext)} must be type of {typeof(PostgreSqlTransactionContext).FullName}");
-
-		return tc;
 	}
 }

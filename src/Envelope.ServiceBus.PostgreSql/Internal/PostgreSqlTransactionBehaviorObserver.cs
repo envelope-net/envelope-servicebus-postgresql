@@ -6,28 +6,33 @@ namespace Envelope.ServiceBus.PostgreSql.Internal;
 internal class PostgreSqlTransactionBehaviorObserver : ITransactionBehaviorObserver
 {
 	private readonly IDocumentSession _documentSession;
-	private bool disposed;
+	private bool _disposed;
 
 	public PostgreSqlTransactionBehaviorObserver(IDocumentSession documentSession)
 	{
 		_documentSession = documentSession ?? throw new ArgumentNullException(nameof(documentSession));
 	}
 
-	public void Commit(ITransactionManager transactionManager)
+	public void Commit(ITransactionCoordinator transactionCoordinator)
 		=> _documentSession.SaveChanges();
 
-	public Task CommitAsync(ITransactionManager transactionManager, CancellationToken cancellationToken)
+	public Task CommitAsync(ITransactionCoordinator transactionCoordinator, CancellationToken cancellationToken)
 		=> _documentSession.SaveChangesAsync(cancellationToken);
 
-	public void Rollback(ITransactionManager transactionManager, Exception? exception)
+	public void Rollback(ITransactionCoordinator transactionCoordinator, Exception? exception)
 	{
 	}
 
-	public Task RollbackAsync(ITransactionManager transactionManager, Exception? exception, CancellationToken cancellationToken)
+	public Task RollbackAsync(ITransactionCoordinator transactionCoordinator, Exception? exception, CancellationToken cancellationToken)
 		=> Task.CompletedTask;
 
 	public async ValueTask DisposeAsync()
 	{
+		if (_disposed)
+			return;
+
+		_disposed = true;
+
 		await DisposeAsyncCoreAsync().ConfigureAwait(false);
 
 		Dispose(disposing: false);
@@ -39,13 +44,13 @@ internal class PostgreSqlTransactionBehaviorObserver : ITransactionBehaviorObser
 
 	protected virtual void Dispose(bool disposing)
 	{
-		if (!disposed)
-		{
-			if (disposing)
-				_documentSession.Dispose();
+		if (_disposed)
+			return;
 
-			disposed = true;
-		}
+		_disposed = true;
+
+		if (disposing)
+			_documentSession.Dispose();
 	}
 
 	public void Dispose()

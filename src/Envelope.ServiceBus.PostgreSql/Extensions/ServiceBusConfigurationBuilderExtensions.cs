@@ -8,7 +8,6 @@ using Envelope.ServiceBus.PostgreSql.Internal;
 using Envelope.ServiceBus.PostgreSql.MessageHandlers.Logging;
 using Envelope.ServiceBus.PostgreSql.Messages.Internal;
 using Envelope.ServiceBus.PostgreSql.Queues.Internal;
-using Envelope.Transactions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -32,8 +31,6 @@ public static class ServiceBusConfigurationBuilderExtensions
 		var storeKey = postgreSqlStoreConfiguration.StoreKey;
 
 		builder
-			.TransactionManagerFactory(sp => new PostgreSqlTransactionManagerFactory(storeKey))
-			.TransactionContextFactory(CreateTransactionContextAsync)
 			.OrchestrationEventsFaultQueue(sp => new PostgreSqlFaultQueue())
 			.OrchestrationExchange(x => x
 				.FIFOQueue((sp, maxSize) => new DbExchangeMessageQueue<OrchestrationEvent>(true))
@@ -53,22 +50,5 @@ public static class ServiceBusConfigurationBuilderExtensions
 			.HandlerLogger(sp => new PostgreSqlHandlerLogger(storeKey, sp.GetRequiredService<ILogger<PostgreSqlHandlerLogger>>()));
 
 		return builder;
-	}
-
-	internal static Task<ITransactionContext> CreateTransactionContextAsync(
-		IServiceProvider serviceProvider,
-		ITransactionManager transactionManager)
-	{
-		if (serviceProvider == null)
-			throw new ArgumentNullException(nameof(serviceProvider));
-
-		if (transactionManager == null)
-			throw new ArgumentNullException(nameof(transactionManager));
-
-		if (transactionManager is not StoreTransactionManager manager)
-			throw new InvalidOperationException($"{nameof(transactionManager)} must be type of {typeof(StoreTransactionManager).FullName}");
-
-		var transactionContext = manager.CreateTransactionContext();
-		return Task.FromResult(transactionContext);
 	}
 }

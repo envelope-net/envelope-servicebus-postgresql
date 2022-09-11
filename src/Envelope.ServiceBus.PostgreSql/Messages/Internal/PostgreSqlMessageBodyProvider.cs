@@ -7,7 +7,7 @@ namespace Envelope.ServiceBus.PostgreSql.Messages.Internal;
 
 internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 {
-	public IResult SaveToStorage<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionContext transactionContext)
+	public IResult SaveToStorage<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionController transactionController)
 		where TMessage : class, IMessage
 	{
 		var result = new ResultBuilder();
@@ -24,7 +24,7 @@ internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 		return result.Build();
 	}
 
-	public IResult<Guid>SaveReplyToStorage<TResponse>(Guid messageId, TResponse? response, ITraceInfo traceInfo, ITransactionContext transactionContext)
+	public IResult<Guid>SaveReplyToStorage<TResponse>(Guid messageId, TResponse? response, ITraceInfo traceInfo, ITransactionController transactionController)
 	{
 		var result = new ResultBuilder<Guid>();
 
@@ -36,7 +36,7 @@ internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 		return result.WithData(Guid.NewGuid()).Build();
 	}
 
-	public Task<IResult> SaveToStorageAsync<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public Task<IResult> SaveToStorageAsync<TMessage>(List<IMessageMetadata> messagesMetadata, TMessage? message, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 		where TMessage : class, IMessage
 	{
 		var result = new ResultBuilder();
@@ -53,7 +53,7 @@ internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 		return Task.FromResult((IResult)result.Build());
 	}
 
-	public Task<IResult<Guid>> SaveReplyToStorageAsync<TResponse>(Guid messageId, TResponse? response, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public Task<IResult<Guid>> SaveReplyToStorageAsync<TResponse>(Guid messageId, TResponse? response, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 	{
 		var result = new ResultBuilder<Guid>();
 
@@ -65,7 +65,7 @@ internal class PostgreSqlMessageBodyProvider : IMessageBodyProvider
 		return Task.FromResult(result.WithData(Guid.NewGuid()).Build());
 	}
 
-	public Task<IResult<TMessage?>> LoadFromStorageAsync<TMessage>(IMessageMetadata messageMetadata, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken)
+	public Task<IResult<TMessage?>> LoadFromStorageAsync<TMessage>(IMessageMetadata messageMetadata, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken)
 		where TMessage : class, IMessage
 	{
 		var result = new ResultBuilder<TMessage?>();

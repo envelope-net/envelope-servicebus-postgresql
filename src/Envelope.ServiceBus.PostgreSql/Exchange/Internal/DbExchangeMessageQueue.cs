@@ -13,7 +13,7 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 	where TMessage : class, IMessage
 {
 	private readonly bool _isFIFO;
-	private bool disposed;
+	private bool _disposed;
 
 	public int? MaxSize { get => null; set => _ = value; } //always null
 
@@ -22,15 +22,15 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		_isFIFO = isFIFO;
 	}
 
-	public async Task<IResult<int>> GetCountAsync(ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task<IResult<int>> GetCountAsync(ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		traceInfo = TraceInfo.Create(traceInfo);
 		var result = new ResultBuilder<int>();
 
-		if (transactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(transactionContext));
+		if (transactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		int count;
 
@@ -42,7 +42,7 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		return result.WithData(count).Build();
 	}
 
-	public Task<IResult> EnqueueAsync(List<IExchangeMessage<TMessage>> exchangeMessages, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public Task<IResult> EnqueueAsync(List<IExchangeMessage<TMessage>> exchangeMessages, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		traceInfo = TraceInfo.Create(traceInfo);
 		var result = new ResultBuilder();
@@ -50,10 +50,10 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		if (exchangeMessages == null)
 			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(exchangeMessages)));
 
-		if (transactionContext == null)
-			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(transactionContext)));
+		if (transactionController == null)
+			return Task.FromResult((IResult)result.WithArgumentNullException(traceInfo, nameof(transactionController)));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
 		var dbExchangeMessages = exchangeMessages.Select(x =>
@@ -71,15 +71,15 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		return Task.FromResult((IResult)result.Build());
 	}
 
-	public async Task<IResult<IExchangeMessage<TMessage>?>> TryPeekAsync(ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task<IResult<IExchangeMessage<TMessage>?>> TryPeekAsync(ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		traceInfo = TraceInfo.Create(traceInfo);
 		var result = new ResultBuilder<IExchangeMessage<TMessage>?>();
 
-		if (transactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(transactionContext));
+		if (transactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
 		DbExchangeMessage? existingDbExchangeMessage;
@@ -92,11 +92,11 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		if (existingDbExchangeMessage == null)
 			return result.Build();
 
-		var excahngeMessage = existingDbExchangeMessage.ExchangeMessage?.ToExchangeMessage<TMessage>();
+		var excahngeMessage = existingDbExchangeMessage.ExchangeMessage?.ToExchangeMessage<TMessage>(traceInfo);
 		return result.WithData(excahngeMessage).Build();
 	}
 
-	public async Task<IResult> TryRemoveAsync(IExchangeMessage<TMessage> exchangeMessage, ITraceInfo traceInfo, ITransactionContext transactionContext, CancellationToken cancellationToken = default)
+	public async Task<IResult> TryRemoveAsync(IExchangeMessage<TMessage> exchangeMessage, ITraceInfo traceInfo, ITransactionController transactionController, CancellationToken cancellationToken = default)
 	{
 		traceInfo = TraceInfo.Create(traceInfo);
 		var result = new ResultBuilder();
@@ -104,10 +104,10 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		if (exchangeMessage == null)
 			return result.WithArgumentNullException(traceInfo, nameof(exchangeMessage));
 
-		if (transactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(transactionContext));
+		if (transactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
 		var existingDbExchangeMessage = await martenSession.LoadAsync<DbExchangeMessage>(exchangeMessage.MessageId, cancellationToken).ConfigureAwait(false);
@@ -127,7 +127,7 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		return result.Build();
 	}
 
-	public async Task<IResult<QueueStatus>> UpdateAsync(IExchangeMessage<TMessage> exchangeMessage, IMessageMetadataUpdate update, ITraceInfo traceInfo, ITransactionContext localTransactionContext, CancellationToken cancellationToken = default)
+	public async Task<IResult<QueueStatus>> UpdateAsync(IExchangeMessage<TMessage> exchangeMessage, IMessageMetadataUpdate update, ITraceInfo traceInfo, ITransactionController localTransactionController, CancellationToken cancellationToken = default)
 	{
 		traceInfo = TraceInfo.Create(traceInfo);
 		var result = new ResultBuilder<QueueStatus>();
@@ -138,10 +138,10 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 		if (update == null)
 			return result.WithArgumentNullException(traceInfo, nameof(update));
 
-		if (localTransactionContext == null)
-			return result.WithArgumentNullException(traceInfo, nameof(localTransactionContext));
+		if (localTransactionController == null)
+			return result.WithArgumentNullException(traceInfo, nameof(localTransactionController));
 
-		var tc = ConvertTransactionContext(localTransactionContext);
+		var tc = localTransactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
 		var existingDbExchangeMessage = await martenSession.LoadAsync<DbExchangeMessage>(exchangeMessage.MessageId, cancellationToken).ConfigureAwait(false);
@@ -161,24 +161,16 @@ internal class DbExchangeMessageQueue<TMessage> : IQueue<IExchangeMessage<TMessa
 					: QueueStatus.Running).Build();
 	}
 
-	private static PostgreSqlTransactionContext ConvertTransactionContext(ITransactionContext transactionContext)
-	{
-		if (transactionContext is not PostgreSqlTransactionContext tc)
-			throw new InvalidOperationException($"{nameof(transactionContext)} must be type of {typeof(PostgreSqlTransactionContext).FullName}");
-
-		return tc;
-	}
-
 	protected virtual void Dispose(bool disposing)
 	{
-		if (!disposed)
-		{
-			if (disposing)
-			{
-				//release managed resources
-			}
+		if (_disposed)
+			return;
 
-			disposed = true;
+		_disposed = true;
+
+		if (disposing)
+		{
+			//release managed resources
 		}
 	}
 

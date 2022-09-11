@@ -1,5 +1,4 @@
-﻿using Envelope.ServiceBus.Orchestrations.Model;
-using Envelope.ServiceBus.PostgreSql.Configuration;
+﻿using Envelope.ServiceBus.PostgreSql.Configuration;
 using Envelope.ServiceBus.PostgreSql.Messages;
 using Marten;
 using System.Collections.Concurrent;
@@ -16,6 +15,9 @@ internal class StoreProvider
 	{
 		if (configuration == null)
 			throw new ArgumentNullException(nameof(configuration));
+
+		if (_stores.ContainsKey(configuration.StoreKey))
+			return;
 
 		//var jsonSerializer = new Marten.Services.JsonNetSerializer
 		//{

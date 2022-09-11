@@ -3,6 +3,7 @@ using Envelope.Logging.Extensions;
 using Envelope.ServiceBus.Jobs.Logging;
 using Envelope.ServiceBus.PostgreSql.Internal;
 using Envelope.ServiceBus.PostgreSql.Messages;
+using Envelope.Services;
 using Envelope.Trace;
 using Envelope.Transactions;
 using Marten;
@@ -13,11 +14,13 @@ namespace Envelope.ServiceBus.PostgreSql.Jobs.Logging;
 public class PostgreSqlJobLogger : IJobLogger
 {
 	private readonly DocumentStore _store;
+	private readonly IApplicationContext _applicationContext;
 	private readonly ILogger _logger;
 
-	public PostgreSqlJobLogger(Guid storeKey, ILogger<PostgreSqlJobLogger> logger)
+	public PostgreSqlJobLogger(Guid storeKey, IApplicationContext applicationContext, ILogger<PostgreSqlJobLogger> logger)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+		_applicationContext = applicationContext ?? throw new ArgumentNullException(nameof(applicationContext));
 		_store = StoreProvider.GetStore(storeKey);
 	}
 
@@ -56,7 +59,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -90,7 +93,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -124,7 +127,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -158,7 +161,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -192,7 +195,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -223,7 +226,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
-		ITransactionContext? transactionContext = null,
+		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
@@ -247,5 +250,105 @@ public class PostgreSqlJobLogger : IJobLogger
 		msg.Exception = tmp;
 
 		return msg;
+	}
+
+	public async Task LogResultErrorMessagesAsync(
+		string jobName,
+		IResult result,
+		ITransactionCoordinator? transactionCoordinator = null,
+		CancellationToken cancellationToken = default)
+	{
+		if (result == null)
+			return;
+
+		var msgs = new List<DbJobLog>();
+
+		foreach (var errorMessage in result.ErrorMessages)
+		{
+			if (errorMessage.LogLevel == LogLevel.Error)
+				_logger.LogErrorMessage(errorMessage, true);
+			else if (errorMessage.LogLevel == LogLevel.Critical)
+				_logger.LogCriticalMessage(errorMessage, true);
+			else
+				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
+
+			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+			msgs.Add(new DbJobLog(jobName, errorMessage));
+		}
+
+		if (0 < msgs.Count)
+		{
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store((IEnumerable<DbJobLog>)msgs);
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
+			}
+		}
+	}
+
+	public async Task LogResultAllMessagesAsync(
+		string jobName,
+		IResult result,
+		ITransactionCoordinator? transactionCoordinator = null,
+		CancellationToken cancellationToken = default)
+	{
+		if (result == null)
+			return;
+
+		var msgs = new List<DbJobLog>();
+
+		var messages = new List<ILogMessage>(result.ErrorMessages);
+		messages.AddRange(result.WarningMessages);
+		messages.AddRange(result.SuccessMessages);
+
+		messages = messages.OrderBy(x => x.CreatedUtc).ToList();
+		foreach (var message in messages)
+		{
+			switch (message.LogLevel)
+			{
+				case LogLevel.Trace:
+					_logger.LogTraceMessage(message, true);
+					break;
+				case LogLevel.Debug:
+					_logger.LogDebugMessage(message, true);
+					break;
+				case LogLevel.Information:
+					_logger.LogInformationMessage(message, true);
+					break;
+				case LogLevel.Warning:
+					_logger.LogWarningMessage(message, true);
+					break;
+				case LogLevel.Error:
+					_logger.LogErrorMessage((message as IErrorMessage)!, true);
+					break;
+				case LogLevel.Critical:
+					_logger.LogCriticalMessage((message as IErrorMessage)!, true);
+					break;
+				default:
+					throw new NotSupportedException($"{nameof(message.LogLevel)} = {message.LogLevel}");
+			}
+
+			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
+			msgs.Add(new DbJobLog(jobName, message));
+		}
+
+		if (0 < msgs.Count)
+		{
+			try
+			{
+				await using var martenSession = _store.OpenSession();
+				martenSession.Store((IEnumerable<DbJobLog>)msgs);
+				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
+			}
+		}
 	}
 }

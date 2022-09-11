@@ -20,10 +20,11 @@ public static class JobProviderConfigurationBuilderExtensions
 			 storeKey = StoreProvider.DefaultStoreKey;
 
 		builder
-			.TransactionManagerFactory(new PostgreSqlTransactionManagerFactory(storeKey))
-			.TransactionContextFactory(ServiceBusConfigurationBuilderExtensions.CreateTransactionContextAsync)
 			.JobRepository(sp => new PostgreSqlJobRepository())
-			.JobLogger(sp => new PostgreSqlJobLogger(storeKey, sp.GetRequiredService<ILogger<PostgreSqlJobLogger>>()));
+			.JobLogger(sp => new PostgreSqlJobLogger(
+				storeKey,
+				sp.GetRequiredService<IApplicationContext>(),
+				sp.GetRequiredService<ILogger<PostgreSqlJobLogger>>()));
 
 		return builder;
 	}

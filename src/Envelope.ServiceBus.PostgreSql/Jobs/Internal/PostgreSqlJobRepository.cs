@@ -10,16 +10,16 @@ internal class PostgreSqlJobRepository : IJobRepository
 {
 	public async Task<TData?> LoadDataAsync<TData>(
 		string jobName,
-		ITransactionContext transactionContext,
+		ITransactionController transactionController,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(jobName))
 			throw new ArgumentNullException(nameof(jobName));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 		var dbJobData = await martenSession.QueryAsync(new JobDataByNameQuery<TData> { JobName = jobName }, cancellationToken).ConfigureAwait(false);
 
@@ -32,16 +32,16 @@ internal class PostgreSqlJobRepository : IJobRepository
 	public Task SaveDataAsync<TData>(
 		string jobName,
 		TData data,
-		ITransactionContext transactionContext,
+		ITransactionController transactionController,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(jobName))
 			throw new ArgumentNullException(nameof(jobName));
 
-		if (transactionContext == null)
-			throw new ArgumentNullException(nameof(transactionContext));
+		if (transactionController == null)
+			throw new ArgumentNullException(nameof(transactionController));
 
-		var tc = ConvertTransactionContext(transactionContext);
+		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
 		var dbJobData = new DbJobData<TData>().Initialize(jobName, data);
@@ -52,13 +52,5 @@ internal class PostgreSqlJobRepository : IJobRepository
 			martenSession.Store(dbJobData);
 
 		return Task.CompletedTask;
-	}
-
-	private static PostgreSqlTransactionContext ConvertTransactionContext(ITransactionContext transactionContext)
-	{
-		if (transactionContext is not PostgreSqlTransactionContext tc)
-			throw new InvalidOperationException($"{nameof(transactionContext)} must be type of {typeof(PostgreSqlTransactionContext).FullName}");
-
-		return tc;
 	}
 }

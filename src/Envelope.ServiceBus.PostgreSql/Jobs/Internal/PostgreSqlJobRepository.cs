@@ -21,17 +21,17 @@ internal class PostgreSqlJobRepository : IJobRepository
 
 		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
-		var dbJobData = await martenSession.QueryAsync(new JobDataByNameQuery<TData> { JobName = jobName }, cancellationToken).ConfigureAwait(false);
+		var dbJobData = await martenSession.QueryAsync(new JobDataByNameQuery { JobName = jobName }, cancellationToken).ConfigureAwait(false);
 
 		if (dbJobData == null)
 			return default;
 
-		return dbJobData.Data;
+		return (TData)dbJobData.Data;
 	}
 
-	public Task SaveDataAsync<TData>(
+	public async Task SaveDataAsync<TData>(
 		string jobName,
-		TData data,
+		TData? data,
 		ITransactionController transactionController,
 		CancellationToken cancellationToken = default)
 	{
@@ -44,13 +44,26 @@ internal class PostgreSqlJobRepository : IJobRepository
 		var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
 		var martenSession = tc.CreateOrGetSession();
 
-		var dbJobData = new DbJobData<TData>().Initialize(jobName, data);
-
-		if (data == null)
-			martenSession.Delete(dbJobData.IdJobData);
+		var dbJobData = await martenSession.QueryAsync(new JobDataByNameQuery { JobName = jobName }, cancellationToken).ConfigureAwait(false);
+		if (dbJobData == null)
+		{
+			if (data != null)
+			{
+				dbJobData = new DbJobData().Initialize(jobName, data!);
+				martenSession.Store(dbJobData);
+			}
+		}
 		else
-			martenSession.Store(dbJobData);
-
-		return Task.CompletedTask;
+		{
+			if (data == null)
+			{
+				martenSession.Delete(dbJobData.IdJobData);
+			}
+			else
+			{
+				dbJobData.Data = data;
+				martenSession.Store(dbJobData);
+			}
+		}
 	}
 }

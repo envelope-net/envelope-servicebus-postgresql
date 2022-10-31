@@ -8,19 +8,12 @@ public class DbJobData
 {
 	public Guid IdJobData { get; set; }
 	public string JobName { get; set; }
-}
+	public object Data { get; set; }
 
-public class DbJobData<TData> : DbJobData
-{
-	public TData Data { get; set; }
-
-	public DbJobData<TData> Initialize(string jobName, TData data)
+	public DbJobData Initialize<TData>(string jobName, TData data)
 	{
 		if (string.IsNullOrWhiteSpace(jobName))
 			throw new ArgumentNullException(nameof(jobName));
-
-		if (data == null)
-			throw new ArgumentNullException(nameof(data));
 
 		IdJobData = GuidConverter.ToGuid(jobName);
 		JobName = jobName;

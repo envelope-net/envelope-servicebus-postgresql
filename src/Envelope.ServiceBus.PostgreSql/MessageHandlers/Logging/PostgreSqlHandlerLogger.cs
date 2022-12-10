@@ -131,10 +131,11 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -164,10 +165,11 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);
@@ -325,11 +327,12 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -359,11 +362,12 @@ public class PostgreSqlHandlerLogger : IHandlerLogger
 		IMessageMetadata? messageMetadata,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, messageMetadata, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);

@@ -135,10 +135,11 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -169,10 +170,11 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);
@@ -425,11 +427,12 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -460,11 +463,12 @@ public class PostgreSqlHostLogger : IHostLogger
 		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);

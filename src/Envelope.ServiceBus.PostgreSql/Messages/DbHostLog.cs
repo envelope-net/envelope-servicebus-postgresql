@@ -6,6 +6,7 @@ public class DbHostLog
 {
 	public Guid IdLogMessage { get; set; }
 	public ILogMessage LogMessage { get; set; }
+	public int IdLogLevel { get; set; }
 
 	public DbHostLog(ILogMessage logMessage)
 	{
@@ -14,5 +15,6 @@ public class DbHostLog
 
 		IdLogMessage = logMessage.IdLogMessage;
 		LogMessage = logMessage;
+		IdLogLevel = logMessage.IdLogLevel;
 	}
 }

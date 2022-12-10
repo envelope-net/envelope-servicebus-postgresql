@@ -61,11 +61,17 @@ internal class StoreProvider
 
 			options.Schema.For<DbHostLog>()
 				.Identity(x => x.IdLogMessage)
-				.DocumentAlias("host_log");
+				.DocumentAlias("host_log")
+				.Duplicate(x => x.IdLogLevel,
+					pgType: "integer",
+					notNull: true);
 
 			options.Schema.For<DbHandlerLog>()
 				.Identity(x => x.IdLogMessage)
-				.DocumentAlias("handler_log");
+				.DocumentAlias("handler_log")
+				.Duplicate(x => x.IdLogLevel,
+					pgType: "integer",
+					notNull: true);
 
 			options.Schema.For<DbOrchestrationInstance>()
 				.Identity(x => x.IdOrchestrationInstance)
@@ -93,7 +99,10 @@ internal class StoreProvider
 
 			options.Schema.For<DbOrchestrationLog>()
 				.Identity(x => x.IdLogMessage)
-				.DocumentAlias("orchestration_log");
+				.DocumentAlias("orchestration_log")
+				.Duplicate(x => x.IdLogLevel,
+					pgType: "integer",
+					notNull: true);
 
 			options.Schema.For<DbJobData>()
 				.Identity(x => x.IdJobData)
@@ -105,6 +114,12 @@ internal class StoreProvider
 				.DocumentAlias("job_log")
 				.Duplicate(x => x.JobName,
 					pgType: "varchar(127)",
+					notNull: true)
+				.Duplicate(x => x.Detail!,
+					pgType: "text",
+					notNull: false)
+				.Duplicate(x => x.IdLogLevel,
+					pgType: "integer",
 					notNull: true);
 		});
 

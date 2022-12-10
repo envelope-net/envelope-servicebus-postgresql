@@ -146,11 +146,12 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 		Guid? idExecutionPointer,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -182,11 +183,12 @@ public class PostgreSqlOrchestrationLogger : IOrchestrationLogger
 		Guid? idExecutionPointer,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, idOrchestration, idStep, idExecutionPointer, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);

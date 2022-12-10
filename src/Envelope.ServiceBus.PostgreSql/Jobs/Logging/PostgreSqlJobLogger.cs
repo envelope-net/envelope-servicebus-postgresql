@@ -74,7 +74,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg));
+				martenSession.Store(new DbJobLog(jobName, msg, detail));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -108,7 +108,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg));
+				martenSession.Store(new DbJobLog(jobName, msg, detail));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -127,11 +127,12 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
-		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogInformationMessage(msg, true);
@@ -142,7 +143,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg));
+				martenSession.Store(new DbJobLog(jobName, msg, detail));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -161,11 +162,12 @@ public class PostgreSqlJobLogger : IJobLogger
 		string jobName,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
+		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
 		AppendToBuilder(messageBuilder, jobName, detail);
-		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, true);
+		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
 			_logger.LogWarningMessage(msg, true);
@@ -176,7 +178,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg));
+				martenSession.Store(new DbJobLog(jobName, msg, detail));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -208,7 +210,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbJobLog(jobName, msg));
+			martenSession.Store(new DbJobLog(jobName, msg, detail));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -239,7 +241,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbJobLog(jobName, msg));
+			martenSession.Store(new DbJobLog(jobName, msg, detail));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -273,7 +275,7 @@ public class PostgreSqlJobLogger : IJobLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbJobLog(jobName, errorMessage));
+			msgs.Add(new DbJobLog(jobName, errorMessage, null));
 		}
 
 		if (0 < msgs.Count)
@@ -334,7 +336,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbJobLog(jobName, message));
+			msgs.Add(new DbJobLog(jobName, message, null));
 		}
 
 		if (0 < msgs.Count)

@@ -6,6 +6,7 @@ public class DbHandlerLog
 {
 	public Guid IdLogMessage { get; set; }
 	public ILogMessage LogMessage { get; set; }
+	public int IdLogLevel { get; set; }
 
 	public DbHandlerLog(ILogMessage logMessage)
 	{
@@ -14,5 +15,6 @@ public class DbHandlerLog
 
 		IdLogMessage = logMessage.IdLogMessage;
 		LogMessage = logMessage;
+		IdLogLevel = logMessage.IdLogLevel;
 	}
 }

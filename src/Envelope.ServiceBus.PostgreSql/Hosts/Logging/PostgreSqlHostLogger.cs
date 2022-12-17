@@ -1,5 +1,7 @@
-﻿using Envelope.Logging;
+﻿using Envelope.Infrastructure;
+using Envelope.Logging;
 using Envelope.Logging.Extensions;
+using Envelope.Logging.PostgreSql;
 using Envelope.ServiceBus.Hosts;
 using Envelope.ServiceBus.Hosts.Logging;
 using Envelope.ServiceBus.PostgreSql.Internal;
@@ -654,4 +656,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 		}
 	}
+
+	public void LogEnvironmentInfo(EnvironmentInfo environmentInfo)
+		=> DbLogWriter.Instance.WriteEnvironmentInfo(environmentInfo);
 }

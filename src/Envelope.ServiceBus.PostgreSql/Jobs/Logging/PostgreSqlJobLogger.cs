@@ -1,5 +1,6 @@
 ﻿using Envelope.Logging;
 using Envelope.Logging.Extensions;
+using Envelope.ServiceBus.Jobs;
 using Envelope.ServiceBus.Jobs.Logging;
 using Envelope.ServiceBus.PostgreSql.Internal;
 using Envelope.ServiceBus.PostgreSql.Messages;
@@ -17,6 +18,8 @@ public class PostgreSqlJobLogger : IJobLogger
 	private readonly IApplicationContext _applicationContext;
 	private readonly ILogger _logger;
 
+	private const string RESULT_LOG_CODE = "SERVICE_RESULT";
+
 	public PostgreSqlJobLogger(Guid storeKey, IApplicationContext applicationContext, ILogger<PostgreSqlJobLogger> logger)
 	{
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -26,43 +29,174 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	private static Action<LogMessageBuilder> AppendToBuilder(
 		Action<LogMessageBuilder> messageBuilder,
-		string jobName,
+		string logCode,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
 		string? detail)
 	{
-		if (!string.IsNullOrWhiteSpace(jobName))
-			messageBuilder += x => x.AddCustomData(nameof(jobName), jobName);
+		messageBuilder += x => x
+			.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+			.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+			.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+			.AddCustomData(nameof(job.Name), job?.Name);
 
 		if (!string.IsNullOrWhiteSpace(detail))
-			messageBuilder +=
-				x => x.AddCustomData(nameof(detail), detail);
+			messageBuilder += x => x.AddCustomData(nameof(detail), detail);
+
+		if (!string.IsNullOrWhiteSpace(logCode))
+			messageBuilder += x => x.LogCode(logCode, force: false);
+
+		executeResult.SetStatus(newExecuteStatus);
 
 		return messageBuilder;
 	}
 
 	private static Action<ErrorMessageBuilder> AppendToBuilder(
 		Action<ErrorMessageBuilder> messageBuilder,
-		string jobName,
+		string logCode,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
 		string? detail)
 	{
-		if (!string.IsNullOrWhiteSpace(jobName))
-			messageBuilder += x => x.AddCustomData(nameof(jobName), jobName);
+		messageBuilder += x => x
+			.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+			.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+			.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+			.AddCustomData(nameof(job.Name), job?.Name);
 
 		if (!string.IsNullOrWhiteSpace(detail))
-			messageBuilder +=
-				x => x.AddCustomData(nameof(detail), detail);
+			messageBuilder += x => x.AddCustomData(nameof(detail), detail);
+
+		if (!string.IsNullOrWhiteSpace(logCode))
+			messageBuilder += x => x.LogCode(logCode, force: false);
+
+		executeResult.SetStatus(newExecuteStatus);
 
 		return messageBuilder;
 	}
 
+	public void LogStatus(
+		ITraceInfo traceInfo,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus)
+	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		executeResult.SetStatus(newExecuteStatus);
+
+		try
+		{
+			using var martenSession = _store.OpenSession();
+			martenSession.Store(DbJob.Create(job, executeResult));
+			martenSession.SaveChanges();
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
+	public async Task LogStatusAsync(
+		ITraceInfo traceInfo,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		CancellationToken cancellationToken = default)
+	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		executeResult.SetStatus(newExecuteStatus);
+
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(DbJob.Create(job, executeResult));
+			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
+	public async Task LogExecutionStartAsync(
+		ITraceInfo traceInfo,
+		IJob job,
+		JobExecuteResult executeResult,
+		DateTime startedUtc,
+		bool finished = false)
+	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(DbJobExecution.Started(job, executeResult, startedUtc, finished));
+			await martenSession.SaveChangesAsync(token: default).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
+	public async Task LogExecutionFinishedAsync(
+		ITraceInfo traceInfo,
+		IJob job,
+		JobExecuteResult executeResult,
+		DateTime startedUtc)
+	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(DbJobExecution.Finised(job, executeResult, startedUtc));
+			await martenSession.SaveChangesAsync(token: default).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
 	public async Task<ILogMessage?> LogTraceAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -74,7 +208,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg, detail));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -90,13 +224,22 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	public async Task<ILogMessage?> LogDebugAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -108,7 +251,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg, detail));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -124,14 +267,23 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	public async Task<ILogMessage?> LogInformationAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -143,7 +295,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg, detail));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -159,14 +311,23 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	public async Task<ILogMessage?> LogWarningAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -178,7 +339,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbJobLog(jobName, msg, detail));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -194,13 +355,22 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	public async Task<IErrorMessage> LogErrorAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -210,7 +380,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbJobLog(jobName, msg, detail));
+			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -225,13 +395,22 @@ public class PostgreSqlJobLogger : IJobLogger
 
 	public async Task<IErrorMessage> LogCriticalAsync(
 		ITraceInfo traceInfo,
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, jobName, detail);
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -241,7 +420,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbJobLog(jobName, msg, detail));
+			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -255,11 +434,20 @@ public class PostgreSqlJobLogger : IJobLogger
 	}
 
 	public async Task LogResultErrorMessagesAsync(
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
 		if (result == null)
 			return;
 
@@ -267,6 +455,16 @@ public class PostgreSqlJobLogger : IJobLogger
 
 		foreach (var errorMessage in result.ErrorMessages)
 		{
+			var builder = new ErrorMessageBuilder(errorMessage);
+			builder
+				.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+				.AddCustomData(nameof(job.Name), job.Name)
+				.LogCode(logCode, force: true);
+
+			executeResult.SetStatus(newExecuteStatus);
+
 			if (errorMessage.LogLevel == LogLevel.Error)
 				_logger.LogErrorMessage(errorMessage, true);
 			else if (errorMessage.LogLevel == LogLevel.Critical)
@@ -275,7 +473,7 @@ public class PostgreSqlJobLogger : IJobLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbJobLog(jobName, errorMessage, null));
+			msgs.Add(DbJobLog.Create(job, executeResult, errorMessage, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode));
 		}
 
 		if (0 < msgs.Count)
@@ -294,13 +492,57 @@ public class PostgreSqlJobLogger : IJobLogger
 	}
 
 	public async Task LogResultAllMessagesAsync(
-		string jobName,
+		IJob job,
+		JobExecuteResult executeResult,
+		JobExecuteStatus? newExecuteStatus,
+		string logCode,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
+
 		if (result == null)
 			return;
+
+		foreach (var msg in result.SuccessMessages)
+		{
+			var builder = new LogMessageBuilder(msg);
+			builder
+				.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+				.AddCustomData(nameof(job.Name), job.Name)
+				.LogCode(logCode, force: true);
+		}
+
+		foreach (var msg in result.WarningMessages)
+		{
+			var builder = new LogMessageBuilder(msg);
+			builder
+				.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+				.AddCustomData(nameof(job.Name), job.Name)
+				.LogCode(logCode, force: true);
+		}
+
+		foreach (var msg in result.ErrorMessages)
+		{
+			var builder = new ErrorMessageBuilder(msg);
+			builder
+				.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+				.AddCustomData(nameof(job.Name), job.Name)
+				.LogCode(logCode, force: true);
+		}
+
+		executeResult.SetStatus(newExecuteStatus);
 
 		var msgs = new List<DbJobLog>();
 
@@ -336,7 +578,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbJobLog(jobName, message, null));
+			msgs.Add(DbJobLog.Create(job, executeResult, message, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode));
 		}
 
 		if (0 < msgs.Count)
@@ -349,7 +591,16 @@ public class PostgreSqlJobLogger : IJobLogger
 			}
 			catch (Exception ex)
 			{
-				_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(_applicationContext), x => x.ExceptionInfo(ex)), true);
+				_logger.LogErrorMessage(
+					LogMessage.CreateErrorMessage(
+						TraceInfo.Create(_applicationContext),
+						x => x.ExceptionInfo(ex)
+							.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
+							.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
+							.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
+							.LogCode(logCode, force: true)
+							.AppendDetail($"{nameof(job.Name)} = {job.Name}")),
+					true);
 			}
 		}
 	}

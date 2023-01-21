@@ -30,13 +30,14 @@ public class PostgreSqlHostLogger : IHostLogger
 	private static Action<LogMessageBuilder> AppendToBuilder(
 		Action<LogMessageBuilder> messageBuilder,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		string? detail)
 	{
 		messageBuilder += x => x
 			.AddCustomData(nameof(hostInfo.HostId), hostInfo.HostId.ToString())
 			.AddCustomData(nameof(hostInfo.HostName), hostInfo.HostName.ToString())
-			.AddCustomData(nameof(hostStatus), ((int)hostStatus).ToString());
+			.AddCustomData(nameof(hostInfo.InstanceId), hostInfo.InstanceId.ToString())
+			.AddCustomData(nameof(hostInfo.EnvironmentInfo.RuntimeUniqueKey), hostInfo.EnvironmentInfo.RuntimeUniqueKey.ToString())
+			.AddCustomData(nameof(hostInfo.HostStatus), ((int)hostInfo.HostStatus).ToString());
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder +=
@@ -48,13 +49,13 @@ public class PostgreSqlHostLogger : IHostLogger
 	private static Action<ErrorMessageBuilder> AppendToBuilder(
 		Action<ErrorMessageBuilder> messageBuilder,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		string? detail)
 	{
 		messageBuilder += x => x
 			.AddCustomData(nameof(hostInfo.HostId), hostInfo.HostId.ToString())
 			.AddCustomData(nameof(hostInfo.HostName), hostInfo.HostName.ToString())
-			.AddCustomData(nameof(hostStatus), ((int)hostStatus).ToString());
+			.AddCustomData(nameof(hostInfo.InstanceId), hostInfo.InstanceId.ToString())
+			.AddCustomData(nameof(hostInfo.HostStatus), ((int)hostInfo.HostStatus).ToString());
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder +=
@@ -63,15 +64,30 @@ public class PostgreSqlHostLogger : IHostLogger
 		return messageBuilder;
 	}
 
+	public void LogStatusHost(
+		ITraceInfo traceInfo,
+		IHostInfo hostInfo)
+	{
+		try
+		{
+			using var martenSession = _store.OpenSession();
+			martenSession.Store(DbHost.Create(hostInfo));
+			martenSession.SaveChanges();
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
 	public ILogMessage? LogTrace(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -83,7 +99,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				martenSession.SaveChanges();
 			}
 			catch (Exception ex)
@@ -100,12 +116,11 @@ public class PostgreSqlHostLogger : IHostLogger
 	public ILogMessage? LogDebug(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -117,7 +132,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				martenSession.SaveChanges();
 			}
 			catch (Exception ex)
@@ -134,13 +149,12 @@ public class PostgreSqlHostLogger : IHostLogger
 	public ILogMessage? LogInformation(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -152,7 +166,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				martenSession.SaveChanges();
 			}
 			catch (Exception ex)
@@ -169,13 +183,12 @@ public class PostgreSqlHostLogger : IHostLogger
 	public ILogMessage? LogWarning(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -187,7 +200,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				martenSession.SaveChanges();
 			}
 			catch (Exception ex)
@@ -204,12 +217,11 @@ public class PostgreSqlHostLogger : IHostLogger
 	public IErrorMessage LogError(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -219,7 +231,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		try
 		{
 			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHostLog(msg));
+			martenSession.Store(DbHostLog.Create(hostInfo, msg));
 			martenSession.SaveChanges();
 		}
 		catch (Exception ex)
@@ -235,12 +247,11 @@ public class PostgreSqlHostLogger : IHostLogger
 	public IErrorMessage LogCritical(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -250,7 +261,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		try
 		{
 			using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHostLog(msg));
+			martenSession.Store(DbHostLog.Create(hostInfo, msg));
 			martenSession.SaveChanges();
 		}
 		catch (Exception ex)
@@ -264,6 +275,7 @@ public class PostgreSqlHostLogger : IHostLogger
 	}
 
 	public void LogResultErrorMessages(
+		IHostInfo hostInfo,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
@@ -279,7 +291,7 @@ public class PostgreSqlHostLogger : IHostLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbHostLog(errorMessage));
+			msgs.Add(DbHostLog.Create(hostInfo, errorMessage));
 		}
 
 		if (0 < msgs.Count)
@@ -298,6 +310,7 @@ public class PostgreSqlHostLogger : IHostLogger
 	}
 
 	public void LogResultAllMessages(
+		IHostInfo hostInfo,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
@@ -335,7 +348,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbHostLog(message));
+			msgs.Add(DbHostLog.Create(hostInfo, message));
 		}
 
 		if (0 < msgs.Count)
@@ -353,16 +366,32 @@ public class PostgreSqlHostLogger : IHostLogger
 		}
 	}
 
+	public async Task LogStatusHostAsync(
+		ITraceInfo traceInfo,
+		IHostInfo hostInfo,
+		CancellationToken cancellationToken = default)
+	{
+		try
+		{
+			await using var martenSession = _store.OpenSession();
+			martenSession.Store(DbHost.Create(hostInfo));
+			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogErrorMessage(LogMessage.CreateErrorMessage(TraceInfo.Create(traceInfo), x => x.ExceptionInfo(ex)), true);
+		}
+	}
+
 	public async Task<ILogMessage?> LogTraceAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -374,7 +403,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -391,13 +420,12 @@ public class PostgreSqlHostLogger : IHostLogger
 	public async Task<ILogMessage?> LogDebugAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -409,7 +437,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -426,14 +454,13 @@ public class PostgreSqlHostLogger : IHostLogger
 	public async Task<ILogMessage?> LogInformationAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -445,7 +472,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -462,14 +489,13 @@ public class PostgreSqlHostLogger : IHostLogger
 	public async Task<ILogMessage?> LogWarningAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<LogMessageBuilder> messageBuilder,
 		string? detail = null,
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -481,7 +507,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(new DbHostLog(msg));
+				martenSession.Store(DbHostLog.Create(hostInfo, msg));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -498,13 +524,12 @@ public class PostgreSqlHostLogger : IHostLogger
 	public async Task<IErrorMessage> LogErrorAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -514,7 +539,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHostLog(msg));
+			martenSession.Store(DbHostLog.Create(hostInfo, msg));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -530,13 +555,12 @@ public class PostgreSqlHostLogger : IHostLogger
 	public async Task<IErrorMessage> LogCriticalAsync(
 		ITraceInfo traceInfo,
 		IHostInfo hostInfo,
-		HostStatus hostStatus,
 		Action<ErrorMessageBuilder> messageBuilder,
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, hostStatus, detail);
+		AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -546,7 +570,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(new DbHostLog(msg));
+			martenSession.Store(DbHostLog.Create(hostInfo, msg));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -560,6 +584,7 @@ public class PostgreSqlHostLogger : IHostLogger
 	}
 
 	public async Task LogResultErrorMessagesAsync(
+		IHostInfo hostInfo,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
@@ -579,7 +604,7 @@ public class PostgreSqlHostLogger : IHostLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbHostLog(errorMessage));
+			msgs.Add(DbHostLog.Create(hostInfo, errorMessage));
 		}
 
 		if (0 < msgs.Count)
@@ -598,6 +623,7 @@ public class PostgreSqlHostLogger : IHostLogger
 	}
 
 	public async Task LogResultAllMessagesAsync(
+		IHostInfo hostInfo,
 		IResult result,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
@@ -639,7 +665,7 @@ public class PostgreSqlHostLogger : IHostLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(new DbHostLog(message));
+			msgs.Add(DbHostLog.Create(hostInfo, message));
 		}
 
 		if (0 < msgs.Count)

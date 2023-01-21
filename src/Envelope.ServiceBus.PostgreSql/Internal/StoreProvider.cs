@@ -1,5 +1,6 @@
 ﻿using Envelope.ServiceBus.PostgreSql.Configuration;
 using Envelope.ServiceBus.PostgreSql.Messages;
+using Envelope.ServiceBus.PostgreSql.Serializars;
 using Marten;
 using System.Collections.Concurrent;
 using Weasel.Core;
@@ -19,16 +20,20 @@ internal class StoreProvider
 		if (_stores.ContainsKey(configuration.StoreKey))
 			return;
 
-		//var jsonSerializer = new Marten.Services.JsonNetSerializer
-		//{
-		//	EnumStorage = EnumStorage.AsString
-		//};
-		//jsonSerializer.Customize(serializer =>
-		//{
-		//	serializer.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Serialize;
-		//	serializer.PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.Objects;
-		//	serializer.TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All;
-		//});
+		var jsonSerializer = new Marten.Services.JsonNetSerializer();
+
+		jsonSerializer.Customize(serializer =>
+		{
+			serializer.Converters.Add(new HostInfoJsonConverter());
+			serializer.Converters.Add(new EnvironmentInfoJsonConverter());
+			serializer.Converters.Add(new LogMessageJsonConverter());
+			serializer.Converters.Add(new TraceInfoJsonConverter());
+			serializer.Converters.Add(new TraceFrameJsonConverter());
+
+			//serializer.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Serialize;
+			//serializer.PreserveReferencesHandling = Newtonsoft.Json.PreserveReferencesHandling.Objects;
+			//serializer.TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All;
+		});
 
 		var store = DocumentStore.For(options =>
 		{
@@ -36,7 +41,7 @@ internal class StoreProvider
 			options.AutoCreateSchemaObjects = AutoCreate.None;
 			options.DatabaseSchemaName = "esb";
 
-			//options.Serializer(jsonSerializer);
+			options.Serializer(jsonSerializer);
 
 			//allow multi-tenant
 			//configure.Policies.ForAllDocuments(x => x.TenancyStyle = TenancyStyle.Conjoined);
@@ -59,9 +64,28 @@ internal class StoreProvider
 				.Identity(x => x.MessageId)
 				.DocumentAlias("queued_archived_message");
 
+			options.Schema.For<DbHost>()
+				.Identity(x => x.HostId)
+				.DocumentAlias("host")
+				.Duplicate(x => x.HostInfo.InstanceId,
+					pgType: "uuid",
+					notNull: true)
+				.Duplicate(x => x.HostInfo.HostName,
+					pgType: "varchar(255)",
+					notNull: true)
+				.Duplicate(x => x.HostStatus,
+					pgType: "integer",
+					notNull: true);
+
 			options.Schema.For<DbHostLog>()
 				.Identity(x => x.IdLogMessage)
 				.DocumentAlias("host_log")
+				.Duplicate(x => x.HostId,
+					pgType: "uuid",
+					notNull: true)
+				.Duplicate(x => x.HostInstanceId,
+					pgType: "uuid",
+					notNull: true)
 				.Duplicate(x => x.IdLogLevel,
 					pgType: "integer",
 					notNull: true);
@@ -104,6 +128,38 @@ internal class StoreProvider
 					pgType: "integer",
 					notNull: true);
 
+			options.Schema.For<DbJob>()
+				.Identity(x => x.JobInstanceId)
+				.DocumentAlias("job")
+				.Duplicate(x => x.HostInstanceId,
+					pgType: "uuid",
+					notNull: true)
+				.Duplicate(x => x.Name,
+					pgType: "varchar(255)",
+					notNull: true)
+				.Duplicate(x => x.Status,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.CurrentExecuteStatus,
+					pgType: "integer",
+					notNull: true);
+
+			options.Schema.For<DbJobExecution>()
+				.Identity(x => x.ExecutionId)
+				.DocumentAlias("job_execution")
+				.Duplicate(x => x.JobInstanceId,
+					pgType: "uuid",
+					notNull: true)
+				.Duplicate(x => x.StartedUtc,
+					pgType: "timestamp",
+					notNull: true)
+				.Duplicate(x => x.FinishedUtc!,
+					pgType: "timestamp",
+					notNull: false)
+				.Duplicate(x => x.ExecuteStatus,
+					pgType: "integer",
+					notNull: true);
+
 			options.Schema.For<DbJobData>()
 				.Identity(x => x.IdJobData)
 				.DocumentAlias("job_data")
@@ -112,13 +168,25 @@ internal class StoreProvider
 			options.Schema.For<DbJobLog>()
 				.Identity(x => x.IdLogMessage)
 				.DocumentAlias("job_log")
-				.Duplicate(x => x.JobName,
-					pgType: "varchar(127)",
+				.Duplicate(x => x.JobInstanceId,
+					pgType: "uuid",
+					notNull: true)
+				.Duplicate(x => x.JobInstanceId,
+					pgType: "uuid",
 					notNull: true)
 				.Duplicate(x => x.Detail!,
 					pgType: "text",
 					notNull: false)
 				.Duplicate(x => x.IdLogLevel,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.LogCode,
+					pgType: "varchar(127)",
+					notNull: false)
+				.Duplicate(x => x.ExecutionId,
+					pgType: "uuid",
+					notNull: false)
+				.Duplicate(x => x.ExecuteStatus,
 					pgType: "integer",
 					notNull: true);
 		});

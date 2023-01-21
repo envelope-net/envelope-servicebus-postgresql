@@ -1,27 +1,48 @@
 ﻿using Envelope.Logging;
+using Envelope.ServiceBus.Jobs;
+using Envelope.ServiceBus.Queries;
 
 namespace Envelope.ServiceBus.PostgreSql.Messages;
 
-public class DbJobLog
+public class DbJobLog : IDbJobLog
 {
 	public Guid IdLogMessage { get; set; }
-	public string JobName { get; set; }
+	public Guid JobInstanceId { get; set; }
 	public string? Detail { get; set; }
+	public Guid ExecutionId { get; set; }
+	public string LogCode { get; set; }
 	public ILogMessage LogMessage { get; set; }
 	public int IdLogLevel { get; set; }
+	public int Status { get; set; }
+	public int ExecuteStatus { get; set; }
+	public DateTime CreatedUtc { get; set; }
 
-	public DbJobLog(string jobName, ILogMessage logMessage, string? detail)
+	public static DbJobLog Create(IJob job, JobExecuteResult executeResult, ILogMessage logMessage, string? detail, string logCode)
 	{
-		if (string.IsNullOrWhiteSpace(jobName))
-			throw new ArgumentNullException(nameof(jobName));
+		if (job == null)
+			throw new ArgumentNullException(nameof(job));
+
+		if (executeResult == null)
+			throw new ArgumentNullException(nameof(executeResult));
 
 		if (logMessage == null)
 			throw new ArgumentNullException(nameof(logMessage));
 
-		IdLogMessage = logMessage.IdLogMessage;
-		JobName = jobName;
-		Detail = detail;
-		LogMessage = logMessage;
-		IdLogLevel = logMessage.IdLogLevel;
+		return new DbJobLog
+		{
+			ExecutionId = executeResult.ExecutionId,
+			IdLogMessage = logMessage.IdLogMessage,
+			JobInstanceId = job.JobInstanceId,
+			Detail = detail,
+			LogCode = logCode,
+			LogMessage = logMessage,
+			IdLogLevel = logMessage.IdLogLevel,
+			Status = (int)job.Status,
+			ExecuteStatus = (int)executeResult.ExecuteStatus,
+			CreatedUtc = DateTime.UtcNow
+		};
 	}
+
+	public string ToJson()
+		=> Newtonsoft.Json.JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
 }

@@ -1,6 +1,8 @@
-﻿using Envelope.Logging;
+﻿using Envelope.Enums;
+using Envelope.Logging;
 using Envelope.ServiceBus.Jobs;
 using Envelope.ServiceBus.Queries;
+using Microsoft.Extensions.Logging;
 
 namespace Envelope.ServiceBus.PostgreSql.Messages;
 
@@ -45,4 +47,7 @@ public class DbJobLog : IDbJobLog
 
 	public string ToJson()
 		=> Newtonsoft.Json.JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
+
+	public override string ToString()
+		=> $" {EnumHelper.ConvertIntToEnum<LogLevel>(IdLogLevel)} | {LogCode} | {EnumHelper.ConvertIntToEnum<JobExecuteStatus>(ExecuteStatus)}";
 }

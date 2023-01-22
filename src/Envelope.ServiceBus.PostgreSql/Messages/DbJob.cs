@@ -9,6 +9,7 @@ public class DbJob : IDbJob
 	public Guid JobInstanceId { get; set; }
 	public Guid HostInstanceId { get; set; }
 	public string Name { get; set; }
+	public string? Description { get; set; }
 	public bool Disabled { get; set; }
 	public int Mode { get; set; }
 	public TimeSpan? DelayedStart { get; set; }
@@ -36,6 +37,7 @@ public class DbJob : IDbJob
 			JobInstanceId = job.JobInstanceId,
 			HostInstanceId = job.HostInfo.InstanceId,
 			Name = job.Name,
+			Description = job.Description,
 			Disabled = job.Disabled,
 			Mode = (int)job.Mode,
 			DelayedStart = job.DelayedStart,
@@ -102,4 +104,7 @@ public class DbJob : IDbJob
 			}
 		}
 	}
+
+	public override string ToString()
+		=> $"{Name} | {GetJobActivityStatus()}";
 }

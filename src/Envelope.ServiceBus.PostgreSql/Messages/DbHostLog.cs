@@ -1,4 +1,5 @@
-﻿using Envelope.Logging;
+﻿using Envelope.Enums;
+using Envelope.Logging;
 using Envelope.ServiceBus.Hosts;
 using Envelope.ServiceBus.Queries;
 
@@ -36,4 +37,7 @@ public class DbHostLog : IDbHostLog
 
 	public string ToJson()
 		=> Newtonsoft.Json.JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
+
+	public override string ToString()
+		=> $"{nameof(HostInstanceId)} = {HostInstanceId} | {EnumHelper.ConvertIntToEnum<HostStatus>(HostStatus)}";
 }

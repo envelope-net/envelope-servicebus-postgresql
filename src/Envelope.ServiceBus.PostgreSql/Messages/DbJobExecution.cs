@@ -1,4 +1,5 @@
-﻿using Envelope.ServiceBus.Jobs;
+﻿using Envelope.Enums;
+using Envelope.ServiceBus.Jobs;
 using Envelope.ServiceBus.Queries;
 
 namespace Envelope.ServiceBus.PostgreSql.Messages;
@@ -52,4 +53,7 @@ public class DbJobExecution : IDbJobExecution
 
 	public string ToJson()
 		=> Newtonsoft.Json.JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
+
+	public override string ToString()
+		=> $"{JobName} | {EnumHelper.ConvertIntToEnum<JobExecuteStatus>(ExecuteStatus)}";
 }

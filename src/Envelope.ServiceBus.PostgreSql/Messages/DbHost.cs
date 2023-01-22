@@ -23,4 +23,7 @@ public class DbHost : IDbHost
 
 	public string ToJson()
 		=> Newtonsoft.Json.JsonConvert.SerializeObject(this, Newtonsoft.Json.Formatting.Indented);
+
+	public override string? ToString()
+		=> HostInfo?.HostName ?? base.ToString();
 }

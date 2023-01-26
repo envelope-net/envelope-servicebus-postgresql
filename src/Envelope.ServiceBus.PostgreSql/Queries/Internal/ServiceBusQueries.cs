@@ -56,6 +56,12 @@ internal class ServiceBusQueries : IServiceBusQueries, IDisposable, IAsyncDispos
 		return result?.Cast<IDbJob>().ToList() ?? new List<IDbJob>();
 	}
 
+	public async Task<IDbJob?> GetJobAsync(Guid jobInstanceId, CancellationToken cancellationToken = default)
+	{
+		var session = CreateOrGetSession();
+		return await session.QueryAsync(new JobByInstanceIdQuery { JobInstanceId = jobInstanceId }, cancellationToken);
+	}
+
 	public async Task<List<IDbJobExecution>> GetJobLatestExecutionsAsync(Guid jobInstanceId, int count = 3, CancellationToken cancellationToken = default)
 	{
 		var session = CreateOrGetSession();
@@ -68,6 +74,12 @@ internal class ServiceBusQueries : IServiceBusQueries, IDisposable, IAsyncDispos
 		var session = CreateOrGetSession();
 		var result = await session.QueryAsync(new JobExecutionsByJobInstanceIdQuery { JobInstanceId = jobInstanceId, From = from, To = to }, cancellationToken).ConfigureAwait(false);
 		return result?.Cast<IDbJobExecution>().ToList() ?? new List<IDbJobExecution>();
+	}
+
+	public async Task<IDbJobExecution?> GetJobExecutionAsync(Guid executionId, CancellationToken cancellationToken = default)
+	{
+		var session = CreateOrGetSession();
+		return await session.QueryAsync(new JobExecutionByExecutionIdQuery { ExecutionId = executionId }, cancellationToken);
 	}
 
 	public async Task<List<IDbJobLog>> GetJobLogsAsync(Guid executionId, CancellationToken cancellationToken = default)

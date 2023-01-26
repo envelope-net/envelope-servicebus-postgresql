@@ -18,6 +18,7 @@ public class DbJob : IDbJob
 	public bool CronExpressionIncludeSeconds { get; set; }
 	public DateTime? NextExecutionRunUtc { get; set; }
 	public int Status { get; set; }
+	public Dictionary<int, string>? JobExecutioinOperations { get; set; }
 	public int CurrentExecuteStatus { get; set; }
 	public int ExecutionEstimatedTimeInSeconds { get; set; }
 	public int DeclaringAsOfflineAfterMinutesOfInactivity { get; set; }
@@ -46,6 +47,7 @@ public class DbJob : IDbJob
 			CronExpressionIncludeSeconds = job.CronTimerSettings?.IncludeSeconds ?? false,
 			NextExecutionRunUtc = job.NextExecutionRunUtc,
 			Status = (int)job.Status,
+			JobExecutioinOperations = job.JobExecutioinOperations,
 			CurrentExecuteStatus = (int)executeResult.ExecuteStatus,
 			ExecutionEstimatedTimeInSeconds = job.ExecutionEstimatedTimeInSeconds,
 			DeclaringAsOfflineAfterMinutesOfInactivity = job.DeclaringAsOfflineAfterMinutesOfInactivity,

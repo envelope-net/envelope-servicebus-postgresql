@@ -18,8 +18,9 @@ public class DbJobLog : IDbJobLog
 	public int Status { get; set; }
 	public int ExecuteStatus { get; set; }
 	public DateTime CreatedUtc { get; set; }
+	public Guid? JobMessageId { get; set; }
 
-	public static DbJobLog Create(IJob job, JobExecuteResult executeResult, ILogMessage logMessage, string? detail, string logCode)
+	public static DbJobLog Create(IJob job, JobExecuteResult executeResult, ILogMessage logMessage, string? detail, string logCode, Guid? jobMessageId)
 	{
 		if (job == null)
 			throw new ArgumentNullException(nameof(job));
@@ -41,7 +42,8 @@ public class DbJobLog : IDbJobLog
 			IdLogLevel = logMessage.IdLogLevel,
 			Status = (int)job.Status,
 			ExecuteStatus = (int)executeResult.ExecuteStatus,
-			CreatedUtc = DateTime.UtcNow
+			CreatedUtc = DateTime.UtcNow,
+			JobMessageId = jobMessageId
 		};
 	}
 

@@ -33,13 +33,15 @@ public class PostgreSqlJobLogger : IJobLogger
 		IJob job,
 		JobExecuteResult executeResult,
 		JobExecuteStatus? newExecuteStatus,
-		string? detail)
+		string? detail,
+		Guid? jobMessageId)
 	{
 		messageBuilder += x => x
 			.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
 			.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 			.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
-			.AddCustomData(nameof(job.Name), job?.Name);
+			.AddCustomData(nameof(job.Name), job?.Name)
+			.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString());
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder += x => x.AddCustomData(nameof(detail), detail);
@@ -58,13 +60,15 @@ public class PostgreSqlJobLogger : IJobLogger
 		IJob job,
 		JobExecuteResult executeResult,
 		JobExecuteStatus? newExecuteStatus,
-		string? detail)
+		string? detail,
+		Guid? jobMessageId)
 	{
 		messageBuilder += x => x
 			.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
 			.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 			.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
-			.AddCustomData(nameof(job.Name), job?.Name);
+			.AddCustomData(nameof(job.Name), job?.Name)
+			.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString());
 
 		if (!string.IsNullOrWhiteSpace(detail))
 			messageBuilder += x => x.AddCustomData(nameof(detail), detail);
@@ -186,6 +190,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -196,7 +201,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -208,7 +213,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -229,6 +234,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -239,7 +245,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -251,7 +257,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -272,6 +278,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		bool force = false,
 		ITransactionController? transactionController = null,
@@ -283,7 +290,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -295,7 +302,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -316,6 +323,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<LogMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		bool force = false,
 		ITransactionController? transactionController = null,
@@ -327,7 +335,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -339,7 +347,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			try
 			{
 				await using var martenSession = _store.OpenSession();
-				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+				martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 				await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 			}
 			catch (Exception ex)
@@ -360,6 +368,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<ErrorMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -370,7 +379,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -380,7 +389,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -400,6 +409,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		Action<ErrorMessageBuilder> messageBuilder,
+		Guid? jobMessageId,
 		string? detail = null,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -410,7 +420,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		if (executeResult == null)
 			throw new ArgumentNullException(nameof(executeResult));
 
-		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail);
+		AppendToBuilder(messageBuilder, logCode, job, executeResult, newExecuteStatus, detail, jobMessageId);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -420,7 +430,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		try
 		{
 			await using var martenSession = _store.OpenSession();
-			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode));
+			martenSession.Store(DbJobLog.Create(job, executeResult, msg, detail, logCode, jobMessageId));
 			await martenSession.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch (Exception ex)
@@ -439,6 +449,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		IResult result,
+		Guid? jobMessageId,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -473,7 +484,7 @@ public class PostgreSqlJobLogger : IJobLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(DbJobLog.Create(job, executeResult, errorMessage, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode));
+			msgs.Add(DbJobLog.Create(job, executeResult, errorMessage, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
 		}
 
 		if (0 < msgs.Count)
@@ -497,6 +508,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		JobExecuteStatus? newExecuteStatus,
 		string logCode,
 		IResult result,
+		Guid? jobMessageId,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -578,7 +590,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(DbJobLog.Create(job, executeResult, message, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode));
+			msgs.Add(DbJobLog.Create(job, executeResult, message, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
 		}
 
 		if (0 < msgs.Count)

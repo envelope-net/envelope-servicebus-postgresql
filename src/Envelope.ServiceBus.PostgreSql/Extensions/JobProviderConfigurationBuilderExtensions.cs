@@ -2,6 +2,8 @@
 using Envelope.ServiceBus.PostgreSql.Internal;
 using Envelope.ServiceBus.PostgreSql.Jobs.Internal;
 using Envelope.ServiceBus.PostgreSql.Jobs.Logging;
+using Envelope.ServiceBus.PostgreSql.Queries.Internal;
+using Envelope.ServiceBus.PostgreSql.Writers.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +26,12 @@ public static class JobProviderConfigurationBuilderExtensions
 			.JobLogger(sp => new PostgreSqlJobLogger(
 				storeKey,
 				sp.GetRequiredService<IApplicationContext>(),
-				sp.GetRequiredService<ILogger<PostgreSqlJobLogger>>()));
+				sp.GetRequiredService<ILogger<PostgreSqlJobLogger>>()))
+			.JobMessageReader(sp => new JobMessageReader(storeKey))
+			.JobMessageWriter(sp => new JobMessageWriter(
+				storeKey,
+				//sp.GetRequiredService<IApplicationContext>(),
+				sp.GetRequiredService<ILogger<JobMessageWriter>>()));
 
 		return builder;
 	}

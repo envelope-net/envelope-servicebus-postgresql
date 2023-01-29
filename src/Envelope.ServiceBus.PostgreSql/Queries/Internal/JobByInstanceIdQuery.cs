@@ -4,7 +4,7 @@ using System.Linq.Expressions;
 
 namespace Envelope.ServiceBus.PostgreSql.Exchange.Internal;
 
-public class JobByInstanceIdQuery : ICompiledQuery<DbJob, DbJob>
+public class JobByInstanceIdQuery : ICompiledQuery<DbJob, DbJob?>
 {
 	public Guid JobInstanceId { get; set; }
 

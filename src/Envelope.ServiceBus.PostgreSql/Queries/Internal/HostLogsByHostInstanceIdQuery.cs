@@ -10,6 +10,6 @@ public class HostLogsByHostInstanceIdQuery : ICompiledListQuery<DbHostLog, DbHos
 
 	public Expression<Func<IMartenQueryable<DbHostLog>, IEnumerable<DbHostLog>>> QueryIs()
 	{
-		return q => q.Where(x => x.HostInstanceId == HostInstanceId);
+		return q => q.Where(x => x.HostInstanceId == HostInstanceId).OrderByDescending(x => x.CreatedUtc);
 	}
 }

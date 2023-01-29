@@ -12,6 +12,6 @@ public class JobExecutionsByJobInstanceIdQuery : ICompiledListQuery<DbJobExecuti
 
 	public Expression<Func<IMartenQueryable<DbJobExecution>, IEnumerable<DbJobExecution>>> QueryIs()
 	{
-		return q => q.Where(x => x.JobInstanceId == JobInstanceId && From <= x.StartedUtc && x.StartedUtc <= To);
+		return q => q.Where(x => x.JobInstanceId == JobInstanceId && From <= x.StartedUtc && x.StartedUtc <= To).OrderByDescending(x => x.StartedUtc);
 	}
 }

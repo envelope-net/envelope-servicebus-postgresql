@@ -1,4 +1,5 @@
-﻿using Envelope.ServiceBus.PostgreSql.Configuration;
+﻿using Envelope.ServiceBus.Messages.Internal;
+using Envelope.ServiceBus.PostgreSql.Configuration;
 using Envelope.ServiceBus.PostgreSql.Messages;
 using Envelope.ServiceBus.PostgreSql.Serializars;
 using Marten;
@@ -134,6 +135,9 @@ internal class StoreProvider
 				.Duplicate(x => x.HostInstanceId,
 					pgType: "uuid",
 					notNull: true)
+				.Duplicate(x => x.HostName,
+					pgType: "varchar(255)",
+					notNull: true)
 				.Duplicate(x => x.Name,
 					pgType: "varchar(255)",
 					notNull: true)
@@ -188,7 +192,60 @@ internal class StoreProvider
 					notNull: false)
 				.Duplicate(x => x.ExecuteStatus,
 					pgType: "integer",
-					notNull: true);
+					notNull: true)
+				.Duplicate(x => x.JobMessageId!,
+					pgType: "uuid",
+					notNull: false);
+
+			options.Schema.For<DbActiveJobMessage>()
+				.Identity(x => x.Id)
+				.DocumentAlias("active_job_message")
+				.Duplicate(x => x.CreatedUtc,
+					pgType: "timestamp",
+					notNull: true)
+				.Duplicate(x => x.JobMessageTypeId,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.DeletedUtc!,
+					pgType: "timestamp",
+					notNull: false)
+				.Duplicate(x => x.DelayedToUtc!,
+					pgType: "timestamp",
+					notNull: false)
+				.Duplicate(x => x.LastUpdatedUtc,
+					pgType: "timestamp",
+					notNull: true)
+				.Duplicate(x => x.Status,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.EntityName!,
+					pgType: "varchar(127)",
+					notNull: false)
+				.Duplicate(x => x.EntityId!,
+					pgType: "uuid",
+					notNull: false);
+
+			options.Schema.For<DbArchivedJobMessage>()
+				.Identity(x => x.Id)
+				.DocumentAlias("archive_job_message")
+				.Duplicate(x => x.CreatedUtc,
+					pgType: "timestamp",
+					notNull: true)
+				.Duplicate(x => x.JobMessageTypeId,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.DeletedUtc!,
+					pgType: "timestamp",
+					notNull: false)
+				.Duplicate(x => x.Status,
+					pgType: "integer",
+					notNull: true)
+				.Duplicate(x => x.EntityName!,
+					pgType: "varchar(127)",
+					notNull: false)
+				.Duplicate(x => x.EntityId!,
+					pgType: "uuid",
+					notNull: false);
 		});
 
 		var SQL_SCRIPT = store.Storage.ToDatabaseScript();

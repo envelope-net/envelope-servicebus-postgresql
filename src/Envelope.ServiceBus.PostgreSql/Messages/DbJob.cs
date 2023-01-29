@@ -8,6 +8,7 @@ public class DbJob : IDbJob
 {
 	public Guid JobInstanceId { get; set; }
 	public Guid HostInstanceId { get; set; }
+	public string HostName { get; set; }
 	public string Name { get; set; }
 	public string? Description { get; set; }
 	public bool Disabled { get; set; }
@@ -18,7 +19,7 @@ public class DbJob : IDbJob
 	public bool CronExpressionIncludeSeconds { get; set; }
 	public DateTime? NextExecutionRunUtc { get; set; }
 	public int Status { get; set; }
-	public Dictionary<int, string>? JobExecutioinOperations { get; set; }
+	public Dictionary<int, string>? JobExecutionOperations { get; set; }
 	public int CurrentExecuteStatus { get; set; }
 	public int ExecutionEstimatedTimeInSeconds { get; set; }
 	public int DeclaringAsOfflineAfterMinutesOfInactivity { get; set; }
@@ -37,6 +38,7 @@ public class DbJob : IDbJob
 		{
 			JobInstanceId = job.JobInstanceId,
 			HostInstanceId = job.HostInfo.InstanceId,
+			HostName = job.HostInfo.HostName,
 			Name = job.Name,
 			Description = job.Description,
 			Disabled = job.Disabled,
@@ -47,7 +49,7 @@ public class DbJob : IDbJob
 			CronExpressionIncludeSeconds = job.CronTimerSettings?.IncludeSeconds ?? false,
 			NextExecutionRunUtc = job.NextExecutionRunUtc,
 			Status = (int)job.Status,
-			JobExecutioinOperations = job.JobExecutioinOperations,
+			JobExecutionOperations = job.JobExecutionOperations,
 			CurrentExecuteStatus = (int)executeResult.ExecuteStatus,
 			ExecutionEstimatedTimeInSeconds = job.ExecutionEstimatedTimeInSeconds,
 			DeclaringAsOfflineAfterMinutesOfInactivity = job.DeclaringAsOfflineAfterMinutesOfInactivity,

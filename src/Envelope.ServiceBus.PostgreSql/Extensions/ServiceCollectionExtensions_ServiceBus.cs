@@ -17,11 +17,7 @@ public static partial class ServiceCollectionExtensions
 	public static IServiceCollection AddServiceBusPostgreSql(this IServiceCollection services, Guid storeKey)
 	{
 		services.TryAddTransient<ITransactionCoordinator, TransactionCoordinator>();
-		services.TryAddTransient<IServiceBusReader>(sp =>
-		{
-			var store = StoreProvider.GetStore(storeKey);
-			return new ServiceBusReader(store);
-		});
+		services.TryAddTransient<IServiceBusReader>(sp => new ServiceBusReader(storeKey));
 		services.TryAddTransient<IJobMessagePublisher>(sp =>
 		{
 			var loggerFactory = sp.GetRequiredService<ILoggerFactory>();

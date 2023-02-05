@@ -5,10 +5,9 @@ using System.Linq.Expressions;
 
 namespace Envelope.ServiceBus.PostgreSql.Queries.Internal;
 
-public class NextActiveJobMessagesCountQuery : ICompiledQuery<DbActiveJobMessage, int>
+public class IdleActiveJobMessagesCountQuery : ICompiledQuery<DbActiveJobMessage, int>
 {
 	private const int _idle = (int)JobMessageStatus.Idle;
-	private const int _error = (int)JobMessageStatus.Error;
 
 	public int JobMessageTypeId { get; set; }
 
@@ -16,7 +15,7 @@ public class NextActiveJobMessagesCountQuery : ICompiledQuery<DbActiveJobMessage
 	{
 		return q => q.Where(x =>
 			x.JobMessageTypeId == JobMessageTypeId
-			&& (x.Status == _idle || x.Status == _error))
+			&& x.Status == _idle)
 		.Count();
 	}
 }

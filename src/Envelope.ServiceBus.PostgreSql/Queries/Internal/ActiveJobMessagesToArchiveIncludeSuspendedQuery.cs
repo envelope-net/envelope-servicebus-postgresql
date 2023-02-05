@@ -5,11 +5,10 @@ using System.Linq.Expressions;
 
 namespace Envelope.ServiceBus.PostgreSql.Queries.Internal;
 
-public class ActiveJobMessagesToArchiveQuery : ICompiledListQuery<DbActiveJobMessage, DbActiveJobMessage>
+public class ActiveJobMessagesToArchiveIncludeSuspendedQuery : ICompiledListQuery<DbActiveJobMessage, DbActiveJobMessage>
 {
 	private const int _idle = (int)JobMessageStatus.Idle;
 	private const int _error = (int)JobMessageStatus.Error;
-	private const int _suspended = (int)JobMessageStatus.Suspended;
 
 	public DateTime LastUpdatedBeforeUtc { get; set; }
 
@@ -17,7 +16,6 @@ public class ActiveJobMessagesToArchiveQuery : ICompiledListQuery<DbActiveJobMes
 	{
 		return q => q.Where(x => x.LastUpdatedUtc < LastUpdatedBeforeUtc
 			&& x.Status != _idle
-			&& x.Status != _error
-			&& x.Status != _suspended);
+			&& x.Status != _error);
 	}
 }

@@ -9,6 +9,7 @@ public class NextActiveJobMessageIgnoringDelayQuery : ICompiledQuery<DbActiveJob
 {
 	private const int _idle = (int)JobMessageStatus.Idle;
 	private const int _error = (int)JobMessageStatus.Error;
+	private const int _suspended = (int)JobMessageStatus.Suspended;
 
 	public int JobMessageTypeId { get; set; }
 
@@ -17,7 +18,7 @@ public class NextActiveJobMessageIgnoringDelayQuery : ICompiledQuery<DbActiveJob
 		return q => q
 			.Where(x =>
 				x.JobMessageTypeId == JobMessageTypeId
-				&& (x.Status == _idle || x.Status == _error))
+				&& (x.Status == _idle || x.Status == _error || x.Status == _suspended))
 			.OrderBy(x => x.CreatedUtc)
 			.FirstOrDefault();
 	}

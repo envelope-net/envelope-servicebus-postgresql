@@ -109,7 +109,7 @@ internal class JobMessageWriter : IJobMessageWriter, IJobMessagePublisher
 		return WriteActiveJobMessageAsync(message, traceInfo, transactionController, cancellationToken);
 	}
 
-	public Task WriteSusspendAsync(
+	public Task WriteSuspendAsync(
 		IJobMessage message,
 		ITraceInfo traceInfo,
 		ITransactionController? transactionController,
@@ -125,7 +125,7 @@ internal class JobMessageWriter : IJobMessageWriter, IJobMessagePublisher
 			throw new ArgumentNullException(nameof(traceInfo));
 
 		traceInfo = TraceInfo.Create(traceInfo);
-		message.Susspend(traceInfo, properties, detail, isDetailJson);
+		message.Suspend(traceInfo, properties, detail, isDetailJson);
 		return WriteActiveJobMessageAsync(message, traceInfo, transactionController, cancellationToken);
 	}
 

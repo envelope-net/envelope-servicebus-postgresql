@@ -5,14 +5,17 @@ using System.Linq.Expressions;
 
 namespace Envelope.ServiceBus.PostgreSql.Queries.Internal;
 
-public class SuspendedActiveJobMessagesCountQuery : ICompiledQuery<DbActiveJobMessage, int>
+public class ErrorActiveJobMessagesCountQuery : ICompiledQuery<DbActiveJobMessage, int>
 {
-	private const int _suspended = (int)JobMessageStatus.Suspended;
+	private const int _error = (int)JobMessageStatus.Error;
 
 	public int JobMessageTypeId { get; set; }
 
 	public Expression<Func<IMartenQueryable<DbActiveJobMessage>, int>> QueryIs()
 	{
-		return q => q.Where(x => x.JobMessageTypeId == JobMessageTypeId && x.Status == _suspended).Count();
+		return q => q.Where(x =>
+			x.JobMessageTypeId == JobMessageTypeId
+			&& x.Status == _error)
+		.Count();
 	}
 }

@@ -450,6 +450,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string logCode,
 		IResult result,
 		Guid? jobMessageId,
+		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -472,7 +473,9 @@ public class PostgreSqlJobLogger : IJobLogger
 				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
 				.AddCustomData(nameof(job.Name), job.Name)
-				.LogCode(logCode, force: true);
+				.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString())
+				.LogCode(logCode, force: true)
+				.AppendDetail(detail);
 
 			executeResult.SetStatus(newExecuteStatus);
 
@@ -484,7 +487,7 @@ public class PostgreSqlJobLogger : IJobLogger
 				throw new NotSupportedException($"{nameof(errorMessage.LogLevel)} = {errorMessage.LogLevel}");
 
 			errorMessage.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(DbJobLog.Create(job, executeResult, errorMessage, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
+			msgs.Add(DbJobLog.Create(job, executeResult, errorMessage, detail, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
 		}
 
 		if (0 < msgs.Count)
@@ -509,6 +512,7 @@ public class PostgreSqlJobLogger : IJobLogger
 		string logCode,
 		IResult result,
 		Guid? jobMessageId,
+		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -529,7 +533,9 @@ public class PostgreSqlJobLogger : IJobLogger
 				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
 				.AddCustomData(nameof(job.Name), job.Name)
-				.LogCode(logCode, force: true);
+				.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString())
+				.LogCode(logCode, force: true)
+				.AppendDetail(detail);
 		}
 
 		foreach (var msg in result.WarningMessages)
@@ -540,7 +546,9 @@ public class PostgreSqlJobLogger : IJobLogger
 				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
 				.AddCustomData(nameof(job.Name), job.Name)
-				.LogCode(logCode, force: true);
+				.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString())
+				.LogCode(logCode, force: true)
+				.AppendDetail(detail);
 		}
 
 		foreach (var msg in result.ErrorMessages)
@@ -551,7 +559,9 @@ public class PostgreSqlJobLogger : IJobLogger
 				.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 				.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
 				.AddCustomData(nameof(job.Name), job.Name)
-				.LogCode(logCode, force: true);
+				.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString())
+				.LogCode(logCode, force: true)
+				.AppendDetail(detail);
 		}
 
 		executeResult.SetStatus(newExecuteStatus);
@@ -590,7 +600,7 @@ public class PostgreSqlJobLogger : IJobLogger
 			}
 
 			message.Exception = null; //marten's Newtonsoft Json serializer can failure on Exception serialization
-			msgs.Add(DbJobLog.Create(job, executeResult, message, null, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
+			msgs.Add(DbJobLog.Create(job, executeResult, message, detail, string.IsNullOrWhiteSpace(logCode) ? RESULT_LOG_CODE : logCode, jobMessageId));
 		}
 
 		if (0 < msgs.Count)
@@ -610,8 +620,9 @@ public class PostgreSqlJobLogger : IJobLogger
 							.AddCustomData(nameof(executeResult.ExecutionId), executeResult.ExecutionId.ToString())
 							.AddCustomData(nameof(executeResult.ExecuteStatus), executeResult.ExecuteStatus.ToString())
 							.AddCustomData(nameof(newExecuteStatus), newExecuteStatus?.ToString())
-							.LogCode(logCode, force: true)
-							.AppendDetail($"{nameof(job.Name)} = {job.Name}")),
+							.AddCustomData(nameof(job.Name), job.Name)
+							.AddCustomData(nameof(jobMessageId), jobMessageId?.ToString())
+							.LogCode(logCode, force: true)),
 					true);
 			}
 		}

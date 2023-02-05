@@ -7,34 +7,11 @@ using Marten;
 
 namespace Envelope.ServiceBus.PostgreSql.Queries.Internal;
 
-internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposable
+internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobMessageReader, IDisposable, IAsyncDisposable
 {
-	private readonly object _sessionLock = new();
-
-	private IQuerySession? _querySession;
-	private bool _disposed;
-
-	public DocumentStore DocumentStore { get; }
-
-	public ServiceBusReader(DocumentStore documentStore)
+	public ServiceBusReader(Guid storeKey)
+		: base(storeKey)
 	{
-		DocumentStore = documentStore ?? throw new ArgumentNullException(nameof(documentStore));
-	}
-
-	private IQuerySession CreateOrGetSession()
-	{
-		if (_querySession != null)
-			return _querySession;
-
-		lock (_sessionLock)
-		{
-			if (_querySession != null)
-				return _querySession;
-
-			_querySession = DocumentStore.QuerySession();
-		}
-
-		return _querySession;
 	}
 
 	public async Task<List<IDbHost>> GetHostsAsync(CancellationToken cancellationToken = default)
@@ -108,9 +85,9 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 	public async Task<List<IJobMessage>> GetActiveJobMessagesAsync(
 		int jobMessageTypeId,
 		int? status = null,
-		bool includeDeleted = false,
 		int page = 1,
 		int pageSize = 20,
+		bool includeDeleted = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -143,6 +120,7 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 
 	public async Task<List<IJobMessage>> GetActiveJobMessagesToArchiveAsync(
 		DateTime lastUpdatedBeforeUtc,
+		bool includeSuspended = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -157,11 +135,14 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		var result = await martenSession.QueryAsync(new ActiveJobMessagesToArchiveQuery { LastUpdatedBeforeUtc = lastUpdatedBeforeUtc }, cancellationToken).ConfigureAwait(false);
+		var result = includeSuspended
+			? await martenSession.QueryAsync(new ActiveJobMessagesToArchiveIncludeSuspendedQuery { LastUpdatedBeforeUtc = lastUpdatedBeforeUtc }, cancellationToken).ConfigureAwait(false)
+			: await martenSession.QueryAsync(new ActiveJobMessagesToArchiveQuery { LastUpdatedBeforeUtc = lastUpdatedBeforeUtc }, cancellationToken).ConfigureAwait(false);
+
 		return result?.Cast<IJobMessage>().ToList() ?? new List<IJobMessage>();
 	}
 
-	public async Task<int> GetNextActiveJobMessagesCountAsync(
+	public async Task<int> GetIdleActiveJobMessagesCountAsync(
 		int jobMessageTypeId,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -177,10 +158,10 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new NextActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.QueryAsync(new IdleActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
 	}
 
-	public async Task<int> GetSusspendedActiveJobMessagesCountAsync(
+	public async Task<int> GetCompletedActiveJobMessagesCountAsync(
 		int jobMessageTypeId,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
@@ -196,7 +177,45 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new SusspendedActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.QueryAsync(new CompletedActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<int> GetErrorActiveJobMessagesCountAsync(
+		int jobMessageTypeId,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		return await martenSession.QueryAsync(new ErrorActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<int> GetSuspendedActiveJobMessagesCountAsync(
+		int jobMessageTypeId,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		return await martenSession.QueryAsync(new SuspendedActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task<int> GetAllActiveJobMessagesCountAsync(
@@ -283,6 +302,7 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 	public async Task<IJobMessage?> GetNextActiveJobMessageAsync(
 		int jobMessageTypeId,
 		DateTime? maxDelayedToUtc,
+		bool skipSuspendedMessages = false,
 		ITransactionController? transactionController = null,
 		CancellationToken cancellationToken = default)
 	{
@@ -298,43 +318,51 @@ internal class ServiceBusReader : IServiceBusReader, IDisposable, IAsyncDisposab
 		}
 
 		return maxDelayedToUtc.HasValue
-			? await martenSession.QueryAsync(new NextActiveJobMessageQuery { JobMessageTypeId = jobMessageTypeId, NowUtc = maxDelayedToUtc.Value }, cancellationToken).ConfigureAwait(false)
-			: await martenSession.QueryAsync(new NextActiveJobMessageIgnoringDelayQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+			? (skipSuspendedMessages
+				? await martenSession.QueryAsync(new NextActiveJobMessageSkipSuspendedQuery { JobMessageTypeId = jobMessageTypeId, NowUtc = maxDelayedToUtc.Value }, cancellationToken).ConfigureAwait(false)
+				: await martenSession.QueryAsync(new NextActiveJobMessageQuery { JobMessageTypeId = jobMessageTypeId, NowUtc = maxDelayedToUtc.Value }, cancellationToken).ConfigureAwait(false))
+			: (skipSuspendedMessages
+				? await martenSession.QueryAsync(new NextActiveJobMessageIgnoringDelaySkipSuspendedQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false)
+				: await martenSession.QueryAsync(new NextActiveJobMessageIgnoringDelayQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false));
 	}
 
-	public async ValueTask DisposeAsync()
+	public async Task<List<IJobMessage>> GetActiveEntityJobMessagesAsync(
+		string entityName,
+		Guid? entityId,
+		int? jobMessageTypeId,
+		int? status = null,
+		int page = 1,
+		int pageSize = 20,
+		bool includeDeleted = false,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
 	{
-		if (_disposed)
-			return;
+		if (page < 1)
+			page = 1;
 
-		_disposed = true;
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
 
-		await DisposeAsyncCoreAsync().ConfigureAwait(false);
+		var result = await martenSession.Query<Messages.DbActiveJobMessage>()
+			.Where(x =>
+				x.EntityName == entityName
+				&& (!entityId.HasValue || x.EntityId == entityId)
+				&& (!jobMessageTypeId.HasValue || x.JobMessageTypeId == jobMessageTypeId)
+				&& (includeDeleted || x.Status != (int)JobMessageStatus.Deleted)
+				&& (!status.HasValue || x.Status == status))
+			.OrderBy(x => x.CreatedUtc)
+			.Skip((page - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync(cancellationToken);
 
-		Dispose(disposing: false);
-		GC.SuppressFinalize(this);
-	}
-
-	protected virtual async ValueTask DisposeAsyncCoreAsync()
-	{
-		if (_querySession != null)
-			await _querySession.DisposeAsync();
-	}
-
-	protected virtual void Dispose(bool disposing)
-	{
-		if (_disposed)
-			return;
-
-		_disposed = true;
-
-		if (disposing)
-			_querySession?.Dispose();
-	}
-
-	public void Dispose()
-	{
-		Dispose(disposing: true);
-		GC.SuppressFinalize(this);
+		return result?.Cast<IJobMessage>().ToList() ?? new List<IJobMessage>();
 	}
 }

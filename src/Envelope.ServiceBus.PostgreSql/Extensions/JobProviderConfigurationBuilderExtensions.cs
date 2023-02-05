@@ -27,7 +27,7 @@ public static class JobProviderConfigurationBuilderExtensions
 				storeKey,
 				sp.GetRequiredService<IApplicationContext>(),
 				sp.GetRequiredService<ILogger<PostgreSqlJobLogger>>()))
-			.JobMessageReader(sp => new JobMessageReader(storeKey))
+			.ServiceBusReader(sp => new ServiceBusReader(storeKey))
 			.JobMessageWriter(sp => new JobMessageWriter(
 				storeKey,
 				//sp.GetRequiredService<IApplicationContext>(),

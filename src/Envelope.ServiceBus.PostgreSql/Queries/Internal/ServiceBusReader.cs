@@ -82,6 +82,44 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 		return result?.Cast<IDbJobLog>().ToList() ?? new List<IDbJobLog>();
 	}
 
+	public async Task<IJobMessage?> GetActiveJobMessageAsync(
+		Guid jobMessageId,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		return await martenSession.QueryAsync(new ActiveJobMessageByIdQuery { JobMessageId = jobMessageId}, cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<IJobMessage?> GetArchivedJobMessageAsync(
+		Guid jobMessageId,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		return await martenSession.QueryAsync(new ArchivedJobMessageByIdQuery { JobMessageId = jobMessageId }, cancellationToken).ConfigureAwait(false);
+	}
+
 	public async Task<List<IJobMessage>> GetActiveJobMessagesAsync(
 		int jobMessageTypeId,
 		int? status = null,

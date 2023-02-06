@@ -82,6 +82,12 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 		return result?.Cast<IDbJobLog>().ToList() ?? new List<IDbJobLog>();
 	}
 
+	public async Task<IDbJobLog?> GetJobLogAsync(Guid idLogMessage, CancellationToken cancellationToken = default)
+	{
+		var session = CreateOrGetSession();
+		return await session.QueryAsync(new JobLogByIdLogMessageQuery { IdLogMessage = idLogMessage }, cancellationToken);
+	}
+
 	public async Task<IJobMessage?> GetActiveJobMessageAsync(
 		Guid jobMessageId,
 		ITransactionController? transactionController = null,

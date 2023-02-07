@@ -1,6 +1,6 @@
 ﻿using Envelope.ServiceBus.Messages;
-using Envelope.ServiceBus.PostgreSql.Exchange.Internal;
 using Envelope.ServiceBus.PostgreSql.Internal;
+using Envelope.ServiceBus.PostgreSql.Messages;
 using Envelope.ServiceBus.Queries;
 using Envelope.Transactions;
 using Marten;
@@ -9,6 +9,12 @@ namespace Envelope.ServiceBus.PostgreSql.Queries.Internal;
 
 internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobMessageReader, IDisposable, IAsyncDisposable
 {
+	private const int _idle = (int)JobMessageStatus.Idle;
+	private const int _completed = (int)JobMessageStatus.Completed;
+	private const int _error = (int)JobMessageStatus.Error;
+	private const int _suspended = (int)JobMessageStatus.Suspended;
+	private const int _deleted = (int)JobMessageStatus.Deleted;
+
 	public ServiceBusReader(Guid storeKey)
 		: base(storeKey)
 	{
@@ -16,76 +22,115 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 
 	public async Task<List<IDbHost>> GetHostsAsync(CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new HostsQuery(), cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbHost>()
+			.OrderBy(x => x.HostInfo.HostName)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbHost>().ToList() ?? new List<IDbHost>();
 	}
 
 	public async Task<List<IDbHostLog>> GetHostLogsAsync(Guid hostInstanceId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new HostLogsByHostInstanceIdQuery { HostInstanceId = hostInstanceId }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbHostLog>()
+			.Where(x => x.HostInstanceId == hostInstanceId)
+			.OrderByDescending(x => x.CreatedUtc)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbHostLog>().ToList() ?? new List<IDbHostLog>();
 	}
 
 	public async Task<List<IDbJob>> GetJobsAsync(Guid hostInstanceId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobsByHostInstanceIdQuery { HostInstanceId = hostInstanceId }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJob>()
+			.Where(x => x.HostInstanceId == hostInstanceId)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJob>().ToList() ?? new List<IDbJob>();
 	}
 
-	public async Task<List<IDbJob>> GetJobsAsync(string jobName, string hostName, int count = 5, CancellationToken cancellationToken = default)
+	public async Task<List<IDbJob>> GetJobsAsync(string jobName, string hostName, int page =1, int pageSize = 5, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobsByNameQuery { Name = jobName, HostName = hostName, /*Page = 1,*/ PageSize = count }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJob>()
+			.Where(x => x.Name == jobName
+				&& (hostName == null || x.HostName == hostName))
+			.OrderByDescending(x => x.LastUpdateUtc)
+			.Skip((page - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJob>().ToList() ?? new List<IDbJob>();
 	}
 
 	public async Task<IDbJob?> GetJobAsync(Guid jobInstanceId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		return await session.QueryAsync(new JobByInstanceIdQuery { JobInstanceId = jobInstanceId }, cancellationToken);
+		var martenSession = CreateOrGetSession();
+		return await martenSession.Query<DbJob>()
+			.Where(x => x.JobInstanceId == jobInstanceId)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<List<IDbJobExecution>> GetJobLatestExecutionsAsync(Guid jobInstanceId, int count = 3, CancellationToken cancellationToken = default)
+	public async Task<List<IDbJobExecution>> GetJobLatestExecutionsAsync(Guid jobInstanceId, int page = 1, int pageSize = 3, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobLatestExecutionsByJobInstanceIdQuery { JobInstanceId = jobInstanceId, /*Page = 1,*/ PageSize = count }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJobExecution>()
+			.Where(x => x.JobInstanceId == jobInstanceId)
+			.OrderByDescending(x => x.StartedUtc)
+			.Skip((page - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJobExecution>().ToList() ?? new List<IDbJobExecution>();
 	}
 
-	public async Task<List<IDbJobExecution>> GetJobExecutionsAsync(Guid jobInstanceId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
+	public async Task<List<IDbJobExecution>> GetJobExecutionsAsync(Guid jobInstanceId, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobExecutionsByJobInstanceIdQuery { JobInstanceId = jobInstanceId, From = from, To = to }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJobExecution>()
+			.Where(x => x.JobInstanceId == jobInstanceId && fromUtc <= x.StartedUtc && x.StartedUtc <= toUtc)
+			.OrderByDescending(x => x.StartedUtc)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJobExecution>().ToList() ?? new List<IDbJobExecution>();
 	}
 
 	public async Task<IDbJobExecution?> GetJobExecutionAsync(Guid executionId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		return await session.QueryAsync(new JobExecutionByExecutionIdQuery { ExecutionId = executionId }, cancellationToken);
+		var martenSession = CreateOrGetSession();
+		return await martenSession.Query<DbJobExecution>()
+			.Where(x => x.ExecutionId == executionId)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<List<IDbJobLog>> GetJobLogsAsync(Guid executionId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobLogsByExecutionIdQuery { ExecutionId = executionId }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJobLog>()
+			.Where(x => x.ExecutionId == executionId)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJobLog>().ToList() ?? new List<IDbJobLog>();
 	}
 
 	public async Task<List<IDbJobLog>> JobLogsForMessageAsync(Guid jobMessageId, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		var result = await session.QueryAsync(new JobLogsByJobMessageIdQuery { JobMessageId = jobMessageId }, cancellationToken).ConfigureAwait(false);
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJobLog>()
+			.Where(x => x.JobMessageId == jobMessageId)
+			.ToListAsync(cancellationToken);
+
 		return result?.Cast<IDbJobLog>().ToList() ?? new List<IDbJobLog>();
 	}
 
 	public async Task<IDbJobLog?> GetJobLogAsync(Guid idLogMessage, CancellationToken cancellationToken = default)
 	{
-		var session = CreateOrGetSession();
-		return await session.QueryAsync(new JobLogByIdLogMessageQuery { IdLogMessage = idLogMessage }, cancellationToken);
+		var martenSession = CreateOrGetSession();
+		return await martenSession.Query<DbJobLog>()
+			.Where(x => x.IdLogMessage == idLogMessage)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<IJobMessage?> GetActiveJobMessageAsync(
@@ -104,7 +149,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new ActiveJobMessageByIdQuery { JobMessageId = jobMessageId}, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.Id == jobMessageId)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<IJobMessage?> GetArchivedJobMessageAsync(
@@ -123,7 +170,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new ArchivedJobMessageByIdQuery { JobMessageId = jobMessageId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbArchivedJobMessage>()
+			.Where(x => x.Id == jobMessageId)
+			.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<List<IJobMessage>> GetActiveJobMessagesAsync(
@@ -149,7 +198,7 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		var result = await martenSession.Query<Messages.DbActiveJobMessage>()
+		var result = await martenSession.Query<DbActiveJobMessage>()
 			.Where(x =>
 				x.JobMessageTypeId == jobMessageTypeId
 				&& (includeDeleted || x.Status != (int)JobMessageStatus.Deleted)
@@ -180,8 +229,17 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 		}
 
 		var result = includeSuspended
-			? await martenSession.QueryAsync(new ActiveJobMessagesToArchiveIncludeSuspendedQuery { LastUpdatedBeforeUtc = lastUpdatedBeforeUtc }, cancellationToken).ConfigureAwait(false)
-			: await martenSession.QueryAsync(new ActiveJobMessagesToArchiveQuery { LastUpdatedBeforeUtc = lastUpdatedBeforeUtc }, cancellationToken).ConfigureAwait(false);
+			? await martenSession.Query<DbActiveJobMessage>()
+				.Where(x => x.LastUpdatedUtc < lastUpdatedBeforeUtc
+					&& x.Status != _idle
+					&& x.Status != _error)
+				.ToListAsync(cancellationToken)
+			: await martenSession.Query<DbActiveJobMessage>()
+				.Where(x => x.LastUpdatedUtc < lastUpdatedBeforeUtc
+					&& x.Status != _idle
+					&& x.Status != _error
+					&& x.Status != _suspended)
+				.ToListAsync(cancellationToken);
 
 		return result?.Cast<IJobMessage>().ToList() ?? new List<IJobMessage>();
 	}
@@ -202,7 +260,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new IdleActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.JobMessageTypeId == jobMessageTypeId && x.Status == _idle)
+			.CountAsync(cancellationToken);
 	}
 
 	public async Task<int> GetCompletedActiveJobMessagesCountAsync(
@@ -221,7 +281,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new CompletedActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.JobMessageTypeId == jobMessageTypeId && x.Status == _completed)
+			.CountAsync(cancellationToken);
 	}
 
 	public async Task<int> GetErrorActiveJobMessagesCountAsync(
@@ -240,7 +302,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new ErrorActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.JobMessageTypeId == jobMessageTypeId && x.Status == _error)
+			.CountAsync(cancellationToken);
 	}
 
 	public async Task<int> GetSuspendedActiveJobMessagesCountAsync(
@@ -259,7 +323,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new SuspendedActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.JobMessageTypeId == jobMessageTypeId && x.Status == _suspended)
+			.CountAsync(cancellationToken);
 	}
 
 	public async Task<int> GetAllActiveJobMessagesCountAsync(
@@ -278,7 +344,9 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			martenSession = tc.CreateOrGetSession();
 		}
 
-		return await martenSession.QueryAsync(new AllActiveJobMessagesCountQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false);
+		return await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => x.JobMessageTypeId == jobMessageTypeId && x.Status != _deleted)
+			.CountAsync(cancellationToken);
 	}
 
 	public Task<int> GetArchivedJobMessagesCountAsync(
@@ -363,11 +431,33 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 
 		return maxDelayedToUtc.HasValue
 			? (skipSuspendedMessages
-				? await martenSession.QueryAsync(new NextActiveJobMessageSkipSuspendedQuery { JobMessageTypeId = jobMessageTypeId, NowUtc = maxDelayedToUtc.Value }, cancellationToken).ConfigureAwait(false)
-				: await martenSession.QueryAsync(new NextActiveJobMessageQuery { JobMessageTypeId = jobMessageTypeId, NowUtc = maxDelayedToUtc.Value }, cancellationToken).ConfigureAwait(false))
+				? await martenSession.Query<DbActiveJobMessage>()
+					.Where(x =>
+						x.JobMessageTypeId == jobMessageTypeId
+						&& (!x.DelayedToUtc.HasValue || x.DelayedToUtc <= maxDelayedToUtc)
+						&& (x.Status == _idle || x.Status == _error))
+					.OrderBy(x => x.CreatedUtc)
+					.FirstOrDefaultAsync(cancellationToken)
+				: await martenSession.Query<DbActiveJobMessage>()
+					.Where(x =>
+						x.JobMessageTypeId == jobMessageTypeId
+						&& (!x.DelayedToUtc.HasValue || x.DelayedToUtc <= maxDelayedToUtc)
+						&& (x.Status == _idle || x.Status == _error || x.Status == _suspended))
+					.OrderBy(x => x.CreatedUtc)
+					.FirstOrDefaultAsync(cancellationToken))
 			: (skipSuspendedMessages
-				? await martenSession.QueryAsync(new NextActiveJobMessageIgnoringDelaySkipSuspendedQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false)
-				: await martenSession.QueryAsync(new NextActiveJobMessageIgnoringDelayQuery { JobMessageTypeId = jobMessageTypeId }, cancellationToken).ConfigureAwait(false));
+				? await martenSession.Query<DbActiveJobMessage>()
+					.Where(x =>
+						x.JobMessageTypeId == jobMessageTypeId
+						&& (x.Status == _idle || x.Status == _error))
+					.OrderBy(x => x.CreatedUtc)
+					.FirstOrDefaultAsync(cancellationToken)
+				: await martenSession.Query<DbActiveJobMessage>()
+					.Where(x =>
+						x.JobMessageTypeId == jobMessageTypeId
+						&& (x.Status == _idle || x.Status == _error || x.Status == _suspended))
+					.OrderBy(x => x.CreatedUtc)
+					.FirstOrDefaultAsync(cancellationToken));
 	}
 
 	public async Task<List<IJobMessage>> GetActiveEntityJobMessagesAsync(

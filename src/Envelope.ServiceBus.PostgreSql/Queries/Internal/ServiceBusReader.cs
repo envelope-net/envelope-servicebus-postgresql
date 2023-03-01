@@ -133,6 +133,16 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 			.FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<List<IDbJobLog>> JobLogsForCorrelationIdAsync(Guid correlationId, CancellationToken cancellationToken = default)
+	{
+		var martenSession = CreateOrGetSession();
+		var result = await martenSession.Query<DbJobLog>()
+			.Where(x => x.LogMessage.TraceInfo.CorrelationId == correlationId)
+			.ToListAsync(cancellationToken);
+
+		return result?.Cast<IDbJobLog>().ToList() ?? new List<IDbJobLog>();
+	}
+
 	public async Task<IJobMessage?> GetActiveJobMessageAsync(
 		Guid jobMessageId,
 		ITransactionController? transactionController = null,

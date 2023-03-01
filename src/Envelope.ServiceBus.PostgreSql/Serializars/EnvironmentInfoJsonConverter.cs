@@ -20,7 +20,7 @@ public class EnvironmentInfoJsonConverter : Newtonsoft.Json.JsonConverter<Enviro
 			var obj = Newtonsoft.Json.Linq.JObject.Load(reader);
 
 			var runningEnvironment = obj.Value<string>(nameof(EnvironmentInfo.RunningEnvironment));
-			var createdUtc = obj.Value<string>(nameof(EnvironmentInfo.CreatedUtc));
+			var createdUtc = obj[nameof(EnvironmentInfo.CreatedUtc)];
 			var frameworkDescription = obj.Value<string>(nameof(EnvironmentInfo.FrameworkDescription));
 			var targetFramework = obj.Value<string>(nameof(EnvironmentInfo.TargetFramework));
 			var clrVersion = obj.Value<string>(nameof(EnvironmentInfo.CLRVersion));
@@ -42,7 +42,14 @@ public class EnvironmentInfoJsonConverter : Newtonsoft.Json.JsonConverter<Enviro
 
 			return new EnvironmentInfo(
 			 	runningEnvironment,
-				DateTimeOffset.TryParse(createdUtc, out var createdUtcDateTime) ? createdUtcDateTime : createdUtcDateTime,
+				//DateTimeOffset.TryParse(
+				//	createdUtc,
+				//	System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat,
+				//	System.Globalization.DateTimeStyles.None,
+				//	out var createdUtcDateTime) ? createdUtcDateTime : createdUtcDateTime,
+				createdUtc == null
+					? default
+					: (DateTimeOffset?)serializer.Deserialize(createdUtc.CreateReader(), typeof(DateTimeOffset)) ?? default,
 				frameworkDescription,
 				targetFramework,
 				clrVersion,

@@ -89,7 +89,11 @@ internal class StoreProvider
 					notNull: true)
 				.Duplicate(x => x.IdLogLevel,
 					pgType: "integer",
-					notNull: true);
+					notNull: true)
+				//.Duplicate(x => x.LogMessage.TraceInfo.CorrelationId!,
+				//	pgType: "uuid",
+				//	notNull: false)
+				;
 
 			options.Schema.For<DbHandlerLog>()
 				.Identity(x => x.IdLogMessage)
@@ -127,7 +131,11 @@ internal class StoreProvider
 				.DocumentAlias("orchestration_log")
 				.Duplicate(x => x.IdLogLevel,
 					pgType: "integer",
-					notNull: true);
+					notNull: true)
+				//.Duplicate(x => x.LogMessage.TraceInfo.CorrelationId!,
+				//	pgType: "uuid",
+				//	notNull: false)
+				;
 
 			options.Schema.For<DbJob>()
 				.Identity(x => x.JobInstanceId)
@@ -195,7 +203,11 @@ internal class StoreProvider
 					notNull: true)
 				.Duplicate(x => x.JobMessageId!,
 					pgType: "uuid",
-					notNull: false);
+					notNull: false)
+				//.Duplicate(x => x.LogMessage.TraceInfo.CorrelationId!,
+				//	pgType: "uuid",
+				//	notNull: false)
+				;
 
 			options.Schema.For<DbActiveJobMessage>()
 				.Identity(x => x.Id)

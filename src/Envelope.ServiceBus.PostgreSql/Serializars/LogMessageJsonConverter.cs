@@ -25,7 +25,7 @@ public class LogMessageJsonConverter : Newtonsoft.Json.JsonConverter<ILogMessage
 
 			var idLogMessage = obj.Value<string>(nameof(ILogMessage.IdLogMessage));
 			var idLogLevel = obj.Value<string>(nameof(ILogMessage.IdLogLevel));
-			var createdUtc = obj.Value<string>(nameof(ILogMessage.CreatedUtc));
+			var createdUtc = obj[nameof(ILogMessage.CreatedUtc)];
 			
 			var traceInfo = obj[nameof(ILogMessage.TraceInfo)];
 
@@ -49,7 +49,14 @@ public class LogMessageJsonConverter : Newtonsoft.Json.JsonConverter<ILogMessage
 			{
 				IdLogMessage = Guid.TryParse(idLogMessage, out var idLogMessageGuid) ? idLogMessageGuid : idLogMessageGuid,
 				LogLevel = EnumHelper.ConvertIntToEnum<LogLevel>(int.TryParse(idLogLevel, out var idLogLevelInt) ? idLogLevelInt : idLogLevelInt),
-				CreatedUtc = DateTimeOffset.TryParse(createdUtc, out var createdUtcDateTime) ? createdUtcDateTime : createdUtcDateTime,
+				//CreatedUtc = DateTimeOffset.TryParse(
+				//	createdUtc,
+				//	System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat,
+				//	System.Globalization.DateTimeStyles.None,
+				//	out var createdUtcDateTime) ? createdUtcDateTime : createdUtcDateTime,
+				CreatedUtc = createdUtc == null
+					? default
+					: (DateTimeOffset?)serializer.Deserialize(createdUtc.CreateReader(), typeof(DateTimeOffset)) ?? default,
 				LogCode = logCode,
 				ClientMessage = clientMessage,
 				InternalMessage = internalMessage,

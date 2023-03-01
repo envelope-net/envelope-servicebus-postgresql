@@ -186,6 +186,58 @@ internal class ServiceBusReader : ServiceBusReaderBase, IServiceBusReader, IJobM
 	}
 
 	public async Task<List<IJobMessage>> GetActiveJobMessagesAsync(
+		List<Guid> jobMessageIds,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		if (jobMessageIds == null || jobMessageIds.Count == 0)
+			return new List<IJobMessage>();
+
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		var result = await martenSession.Query<DbActiveJobMessage>()
+			.Where(x => jobMessageIds.Contains(x.Id))
+			.ToListAsync(cancellationToken);
+
+		return result?.Cast<IJobMessage>().ToList() ?? new List<IJobMessage>();
+	}
+
+	public async Task<List<IJobMessage>> GetArchivedJobMessagesAsync(
+		List<Guid> jobMessageIds,
+		ITransactionController? transactionController = null,
+		CancellationToken cancellationToken = default)
+	{
+		if (jobMessageIds == null || jobMessageIds.Count == 0)
+			return new List<IJobMessage>();
+
+		IQuerySession martenSession;
+		if (transactionController == null)
+		{
+			martenSession = CreateOrGetSession();
+		}
+		else
+		{
+			var tc = transactionController.GetTransactionCache<PostgreSqlTransactionDocumentSessionCache>();
+			martenSession = tc.CreateOrGetSession();
+		}
+
+		var result = await martenSession.Query<DbArchivedJobMessage>()
+			.Where(x => jobMessageIds.Contains(x.Id))
+			.ToListAsync(cancellationToken);
+
+		return result?.Cast<IJobMessage>().ToList() ?? new List<IJobMessage>();
+	}
+
+	public async Task<List<IJobMessage>> GetActiveJobMessagesAsync(
 		int jobMessageTypeId,
 		int? status = null,
 		int page = 1,

@@ -191,7 +191,11 @@ internal class PostgreSqlTransactionDocumentSessionCache : ITransactionCache, ID
 		if (_documentSession != null)
 			await _documentSession.DisposeAsync();
 
+#if NETSTANDARD2_0 || NETSTANDARD2_1
+		TransactionCoordinator.Dispose();
+#elif NET6_0_OR_GREATER
 		await TransactionCoordinator.DisposeAsync();
+#endif
 	}
 
 	protected virtual void Dispose(bool disposing)

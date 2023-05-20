@@ -1,7 +1,7 @@
-﻿using Envelope.ServiceBus.PostgreSql.Serializars.Model;
+﻿using Envelope.Serializer.JsonConverters.Model;
 using Envelope.Trace;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars;
+namespace Envelope.ServiceBus.PostgreSql.Serializers;
 
 public class TraceInfoJsonConverter : Newtonsoft.Json.JsonConverter<ITraceInfo>
 {
@@ -41,7 +41,9 @@ public class TraceInfoJsonConverter : Newtonsoft.Json.JsonConverter<ITraceInfo>
 				ExternalCorrelationId = externalCorrelationId,
 				CorrelationId =
 					Guid.TryParse(correlationId, out var correlationIdGuid) ? correlationIdGuid : correlationIdGuid,
-				ContextProperties = contextProperties == null ? null : (Dictionary<string, string?>)serializer.Deserialize(contextProperties!.CreateReader(), typeof(Dictionary<string, string?>))!,
+				ContextProperties = contextProperties == null
+					? new Dictionary<string, string?>()
+					: (Dictionary<string, string?>)serializer.Deserialize(contextProperties!.CreateReader(), typeof(Dictionary<string, string?>))!,
 				TraceFrame = (ITraceFrame)serializer.Deserialize(traceFrame!.CreateReader(), typeof(ITraceFrame))!,
 				//Principal = ?,
 				//User = ?

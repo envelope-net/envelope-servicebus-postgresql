@@ -87,7 +87,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -120,7 +120,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -154,7 +154,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -188,7 +188,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		bool force = false,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -221,7 +221,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -251,7 +251,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		string? detail = null,
 		ITransactionCoordinator? transactionCoordinator = null)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 
@@ -391,7 +391,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareTraceMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -425,7 +425,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareDebugMessage(traceInfo, messageBuilder, true);
 		if (msg != null)
 		{
@@ -460,7 +460,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareInformationMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -495,7 +495,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareWarningMessage(traceInfo, messageBuilder, !force);
 		if (msg != null)
 		{
@@ -529,7 +529,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareErrorMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogErrorMessage(msg, true);
 
@@ -560,7 +560,7 @@ public class PostgreSqlHostLogger : IHostLogger
 		ITransactionCoordinator? transactionCoordinator = null,
 		CancellationToken cancellationToken = default)
 	{
-		AppendToBuilder(messageBuilder, hostInfo, detail);
+		messageBuilder = AppendToBuilder(messageBuilder, hostInfo, detail);
 		var msg = _logger.PrepareCriticalMessage(traceInfo, messageBuilder, false)!;
 		_logger.LogCriticalMessage(msg, true);
 

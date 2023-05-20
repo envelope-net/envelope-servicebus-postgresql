@@ -1,10 +1,11 @@
 ﻿using Envelope.Enums;
 using Envelope.Logging;
-using Envelope.ServiceBus.PostgreSql.Serializars.Model;
+using Envelope.Logging.Serializers.JsonConverters;
+using Envelope.Logging.Serializers.JsonConverters.Model;
 using Envelope.Trace;
 using Microsoft.Extensions.Logging;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars;
+namespace Envelope.ServiceBus.PostgreSql.Serializers;
 
 public class LogMessageJsonConverter : Newtonsoft.Json.JsonConverter<ILogMessage>
 {

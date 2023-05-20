@@ -1,7 +1,7 @@
-﻿using Envelope.ServiceBus.PostgreSql.Serializars.Model;
+﻿using Envelope.Serializer.JsonConverters.Model;
 using Envelope.Trace;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars;
+namespace Envelope.ServiceBus.PostgreSql.Serializers;
 
 public class TraceFrameJsonConverter : Newtonsoft.Json.JsonConverter<ITraceFrame>
 {

@@ -1,6 +1,6 @@
 ﻿using Envelope.Infrastructure;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars;
+namespace Envelope.ServiceBus.PostgreSql.Serializers;
 
 public class EnvironmentInfoJsonConverter : Newtonsoft.Json.JsonConverter<EnvironmentInfo>
 {

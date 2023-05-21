@@ -1,7 +1,7 @@
 ﻿using Envelope.Infrastructure;
 using Envelope.ServiceBus.Hosts;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars.Model;
+namespace Envelope.ServiceBus.PostgreSql.Serializers.Model;
 
 internal class DeserializedHostInfo : IHostInfo
 {

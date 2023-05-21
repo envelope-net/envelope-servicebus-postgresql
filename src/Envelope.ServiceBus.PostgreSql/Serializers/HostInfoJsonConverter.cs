@@ -1,9 +1,9 @@
 ﻿using Envelope.Enums;
 using Envelope.Infrastructure;
 using Envelope.ServiceBus.Hosts;
-using Envelope.ServiceBus.PostgreSql.Serializars.Model;
+using Envelope.ServiceBus.PostgreSql.Serializers.Model;
 
-namespace Envelope.ServiceBus.PostgreSql.Serializars;
+namespace Envelope.ServiceBus.PostgreSql.Serializers;
 
 public class HostInfoJsonConverter : Newtonsoft.Json.JsonConverter<IHostInfo>
 {

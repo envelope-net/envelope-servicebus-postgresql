@@ -1,4 +1,4 @@
-﻿using Envelope.MessageBus.Configuration;
+﻿using Envelope.ServiceBus.Configuration;
 using Envelope.ServiceBus.PostgreSql.Configuration;
 using Envelope.ServiceBus.PostgreSql.Hosts.Logging;
 using Envelope.ServiceBus.PostgreSql.MessageHandlers.Logging;
